@@ -5,7 +5,7 @@
       <div class="brand-icon">BE</div>
       <div>
         <div class="brand-name">BankEase</div>
-        <div class="brand-sub">NextGen Net Banking (Angular)</div>
+        <div class="brand-sub">NextGen Digital Banking Suite</div>
       </div>
     </div>
 
@@ -23,13 +23,85 @@
       </div>
     }
   </div>
+
+  <!-- Customer Module Tabs Bar -->
+  @if (auth.isLoggedIn() && auth.isCustomer()) {
+    <nav class="module-nav-bar">
+      <div class="module-nav-container">
+        <button 
+          type="button" 
+          [class.active]="activeNavTab === 'banking'" 
+          (click)="activeNavTab = 'banking'" 
+          class="module-nav-btn">
+          🏦 Accounts & Transfer
+        </button>
+        <button 
+          type="button" 
+          [class.active]="activeNavTab === 'billpay'" 
+          (click)="activeNavTab = 'billpay'" 
+          class="module-nav-btn">
+          💡 Bill Pay & Utilities
+        </button>
+        <button 
+          type="button" 
+          [class.active]="activeNavTab === 'loans'" 
+          (click)="activeNavTab = 'loans'" 
+          class="module-nav-btn">
+          💰 Loans & EMI
+        </button>
+        <button 
+          type="button" 
+          [class.active]="activeNavTab === 'investments'" 
+          (click)="activeNavTab = 'investments'" 
+          class="module-nav-btn">
+          📈 Investments (FD/RD/MF)
+        </button>
+        <button 
+          type="button" 
+          [class.active]="activeNavTab === 'compliance'" 
+          (click)="activeNavTab = 'compliance'" 
+          class="module-nav-btn">
+          🛡️ Compliance & Security
+        </button>
+      </div>
+    </nav>
+  }
+
+  <!-- Admin Module Tabs Bar -->
+  @if (auth.isLoggedIn() && auth.isAdmin()) {
+    <nav class="module-nav-bar admin-bar">
+      <div class="module-nav-container">
+        <button 
+          type="button" 
+          [class.active]="adminNavTab === 'overview'" 
+          (click)="adminNavTab = 'overview'" 
+          class="module-nav-btn">
+          👥 Users & Accounts
+        </button>
+        <button 
+          type="button" 
+          [class.active]="adminNavTab === 'loans'" 
+          (click)="adminNavTab = 'loans'" 
+          class="module-nav-btn">
+          💰 Loan Approvals ({{ allLoans().length }})
+        </button>
+        <button 
+          type="button" 
+          [class.active]="adminNavTab === 'audit'" 
+          (click)="adminNavTab = 'audit'" 
+          class="module-nav-btn">
+          🛡️ Compliance Audit & Lockouts
+        </button>
+      </div>
+    </nav>
+  }
 </header>
 
-<!-- Main Content Wrapper -->
+<!-- Main Application Wrapper -->
 <main class="main-wrapper">
 
   <!-- ======================================================================
-       VIEW 1: Authentication Screen (Login / Register)
+       VIEW 0: Authentication Screen (JWT Login / Register)
        ====================================================================== -->
   @if (!auth.isLoggedIn()) {
     <section class="auth-container">
@@ -41,7 +113,7 @@
             [class.active]="authTab === 'login'" 
             (click)="authTab = 'login'" 
             class="auth-tab">
-            Sign In
+            Sign In (JWT)
           </button>
           <button 
             type="button" 
@@ -52,7 +124,7 @@
           </button>
         </div>
 
-        <!-- 1A: Sign In Form -->
+        <!-- Sign In Form -->
         @if (authTab === 'login') {
           <form (ngSubmit)="onLogin()">
             <div class="form-group">
@@ -77,13 +149,14 @@
                 class="form-control" 
                 placeholder="••••••••" 
                 required>
+              <div class="form-hint">🔒 Account automatically locks after 3 failed consecutive login attempts.</div>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-block">Sign In to Net Banking</button>
+            <button type="submit" class="btn btn-primary btn-block">Sign In to BankEase</button>
           </form>
         }
 
-        <!-- 1B: Register Form -->
+        <!-- Register Form -->
         @if (authTab === 'register') {
           <form (ngSubmit)="onRegister()">
             <div class="form-group">
@@ -121,20 +194,19 @@
                 placeholder="Minimum 6 characters" 
                 minlength="6" 
                 required>
-              <div class="form-hint">🔒 Passwords are encrypted with salted BCrypt before storage.</div>
             </div>
 
             <div class="bonus-alert">
-              🎉 <strong>Welcome Bonus:</strong> Every new registration opens a <strong>SAVINGS</strong> account credited with <strong>₹10,000</strong> demo money!
+              🎉 <strong>Welcome Gift:</strong> Every new registration opens a <strong>SAVINGS</strong> account credited with <strong>₹10,000</strong> demo money!
             </div>
 
             <button type="submit" class="btn btn-primary btn-block">Open Account & Claim ₹10,000</button>
           </form>
         }
 
-        <!-- 1C: Pre-seeded Demo Credentials (1-Click Fill) -->
+        <!-- Quick 1-Click Demo Credentials -->
         <div class="demo-credentials-card">
-          <strong>⚡ Quick Demo Credentials:</strong>
+          <strong>⚡ 1-Click Demo Credentials:</strong>
           <div class="demo-pill-group">
             <button type="button" (click)="fillDemo('rahul')" class="demo-pill">👤 Rahul (Customer)</button>
             <button type="button" (click)="fillDemo('priya')" class="demo-pill">👤 Priya (Customer)</button>
@@ -146,31 +218,31 @@
   }
 
   <!-- ======================================================================
-       VIEW 2: Customer Net Banking Dashboard
+       CUSTOMER VIEWS
        ====================================================================== -->
   @if (auth.isLoggedIn() && auth.isCustomer()) {
-    <section>
-      <!-- Account Overview Banner -->
-      <div class="account-banner">
-        <div>
-          <div class="banner-welcome">Welcome back,</div>
-          <div class="banner-name">{{ auth.currentUser()?.fullName }}</div>
-          <div class="banner-acc-num">
-            <span>A/C No:</span>
-            <strong>{{ activeAccount()?.accountNumber || 'Loading...' }}</strong>
-            <span class="role-badge badge-light">{{ activeAccount()?.accountType || 'SAVINGS' }}</span>
-          </div>
-        </div>
-        <div class="balance-card-box">
-          <div class="balance-label">Available Balance</div>
-          <div class="balance-amount">₹ {{ (activeAccount()?.balance || 0) | number:'1.2-2' }}</div>
+    
+    <!-- Account Overview Banner (Always visible in Customer Mode) -->
+    <div class="account-banner">
+      <div>
+        <div class="banner-welcome">Welcome back,</div>
+        <div class="banner-name">{{ auth.currentUser()?.fullName }}</div>
+        <div class="banner-acc-num">
+          <span>A/C No:</span>
+          <strong>{{ activeAccount()?.accountNumber || 'Loading...' }}</strong>
+          <span class="role-badge badge-light">{{ activeAccount()?.accountType || 'SAVINGS' }}</span>
         </div>
       </div>
+      <div class="balance-card-box">
+        <div class="balance-label">Available Balance</div>
+        <div class="balance-amount">₹ {{ (activeAccount()?.balance || 0) | number:'1.2-2' }}</div>
+      </div>
+    </div>
 
-      <!-- Two-Column Grid: Transfer Form & Transactions -->
+    <!-- TAB 1: ACCOUNTS & FUND TRANSFER -->
+    @if (activeNavTab === 'banking') {
       <div class="dashboard-grid">
-        
-        <!-- Left: Instant Fund Transfer Form -->
+        <!-- Fund Transfer Form -->
         <div class="card">
           <div class="card-title">
             <span>💸 Instant Fund Transfer</span>
@@ -225,32 +297,57 @@
                 min="0.01" 
                 step="0.01" 
                 required>
+              <div class="form-hint">🔒 Transfers ≥ ₹25,000 trigger automated 2-Factor OTP authorization.</div>
             </div>
 
+            <!-- OTP Input if high value -->
+            @if (showOtpInput() || transferModel.amount >= 25000) {
+              <div class="form-group bonus-alert" style="background:#fef3c7; border-color:#fde047; color:#854d0e;">
+                <label class="form-label" style="color:#854d0e;">2FA Security OTP (Transfers ≥ ₹25,000)</label>
+                <div style="display:flex; gap:0.5rem;">
+                  <input 
+                    type="text" 
+                    name="otpCode" 
+                    [(ngModel)]="transferModel.otpCode" 
+                    class="form-control" 
+                    placeholder="Enter 6-digit OTP" 
+                    required>
+                  <button type="button" (click)="requestTransferOtp()" class="btn btn-secondary btn-sm" style="white-space:nowrap;">
+                    Generate OTP
+                  </button>
+                </div>
+                @if (simulatedOtp()) {
+                  <small style="margin-top:0.35rem; display:block; font-weight:bold;">
+                    ⚡ Simulated OTP: {{ simulatedOtp() }}
+                  </small>
+                }
+              </div>
+            }
+
             <div class="form-group">
-              <label class="form-label" for="description">Remarks / Purpose (Optional)</label>
+              <label class="form-label" for="description">Remarks / Purpose</label>
               <input 
                 type="text" 
                 id="description" 
                 name="description" 
                 [(ngModel)]="transferModel.description" 
                 class="form-control" 
-                placeholder="e.g. Project share, Lunch">
+                placeholder="e.g. Rent, Project Share">
             </div>
 
             <button 
               type="submit" 
               [disabled]="isTransferring()" 
               class="btn btn-primary btn-block">
-              {{ isTransferring() ? 'Processing Transfer...' : 'Transfer Funds Now' }}
+              {{ isTransferring() ? 'Processing Atomic Transfer...' : 'Transfer Funds Now' }}
             </button>
           </form>
         </div>
 
-        <!-- Right: Recent Transaction History -->
+        <!-- Transaction Statement -->
         <div class="card">
           <div class="card-title">
-            <span>📜 Transaction History</span>
+            <span>📜 Account Statement</span>
             <button 
               type="button" 
               (click)="activeAccount() && loadTransactions(activeAccount()!.accountNumber)" 
@@ -310,22 +407,475 @@
             </table>
           </div>
         </div>
-
       </div>
-    </section>
+    }
+
+    <!-- TAB 2: BILL PAY & UTILITIES -->
+    @if (activeNavTab === 'billpay') {
+      <div class="dashboard-grid">
+        <!-- Pay Bill Form -->
+        <div class="card">
+          <div class="card-title">
+            <span>💡 Pay Utility Bill</span>
+          </div>
+
+          <!-- Quick Select from Saved Payees -->
+          @if (payees().length > 0) {
+            <div style="margin-bottom: 1.25rem;">
+              <label class="form-label">Select Saved Payee</label>
+              <div class="demo-pill-group">
+                @for (p of payees(); track p.id) {
+                  <button type="button" (click)="selectPayeeForPayment(p)" class="demo-pill">
+                    {{ p.payeeName }} ({{ p.category }})
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          <form (ngSubmit)="onPayBill()">
+            <div class="form-group">
+              <label class="form-label">Payee Name</label>
+              <input type="text" [(ngModel)]="billPayModel.payeeName" name="payeeName" class="form-control" placeholder="e.g. Tata Power" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select [(ngModel)]="billPayModel.category" name="category" class="form-control">
+                <option value="ELECTRICITY">Electricity</option>
+                <option value="MOBILE_RECHARGE">Mobile Recharge</option>
+                <option value="BROADBAND">Broadband / Internet</option>
+                <option value="WATER">Water Supply</option>
+                <option value="DTH">DTH / Cable</option>
+                <option value="CREDIT_CARD">Credit Card Bill</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Consumer / Account ID</label>
+              <input type="text" [(ngModel)]="billPayModel.consumerNumber" name="consumerNumber" class="form-control" placeholder="e.g. DEL-10928374" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Bill Amount (₹)</label>
+              <input type="number" [(ngModel)]="billPayModel.amount" name="amount" class="form-control" min="1" step="1" required>
+            </div>
+
+            <div class="form-group" style="display:flex; align-items:center; gap:0.5rem;">
+              <input type="checkbox" [(ngModel)]="billPayModel.isScheduled" name="isScheduled" id="chkSchedule">
+              <label for="chkSchedule" style="font-size:0.85rem; font-weight:600; cursor:pointer;">
+                Schedule for Future Date (Auto-Pay)
+              </label>
+            </div>
+
+            @if (billPayModel.isScheduled) {
+              <div class="form-group">
+                <label class="form-label">Scheduled Date</label>
+                <input type="date" [(ngModel)]="billPayModel.scheduledDate" name="scheduledDate" class="form-control" required>
+              </div>
+            }
+
+            <button type="submit" class="btn btn-primary btn-block">
+              {{ billPayModel.isScheduled ? 'Schedule Bill Payment' : 'Pay Bill Now' }}
+            </button>
+          </form>
+
+          <!-- Add Payee Sub-card -->
+          <div style="margin-top: 1.5rem; border-top: 1px solid #e2e8f0; padding-top: 1.25rem;">
+            <div class="card-title" style="font-size:1rem;">➕ Register New Payee</div>
+            <form (ngSubmit)="onAddPayee()">
+              <div class="form-group">
+                <input type="text" [(ngModel)]="newPayee.payeeName" name="newPayeeName" class="form-control" placeholder="Biller Name (e.g. Jio Fiber)" required>
+              </div>
+              <div class="form-group">
+                <input type="text" [(ngModel)]="newPayee.consumerNumber" name="newConsumer" class="form-control" placeholder="Consumer Number" required>
+              </div>
+              <button type="submit" class="btn btn-secondary btn-sm btn-block">Save Payee</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Bill Payment History -->
+        <div class="card">
+          <div class="card-title">
+            <span>📑 Utility Payment & Scheduled Bills</span>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Payee / Ref</th>
+                  <th>Category</th>
+                  <th>Consumer #</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (b of billHistory(); track b.id) {
+                  <tr>
+                    <td>
+                      <strong>{{ b.payeeName }}</strong><br>
+                      <small class="text-muted">#{{ b.id }} &bull; {{ b.createdAt | date:'short' }}</small>
+                    </td>
+                    <td><span class="role-badge customer">{{ b.category }}</span></td>
+                    <td><code>{{ b.consumerNumber }}</code></td>
+                    <td><strong>₹ {{ b.amount | number:'1.2-2' }}</strong></td>
+                    <td>
+                      <span [class]="'status-badge ' + b.status.toLowerCase()">
+                        {{ b.status }}
+                      </span>
+                      @if (b.isScheduled) {
+                        <br><small style="color:#d97706;">Due: {{ b.scheduledDate }}</small>
+                      }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="empty-state">No utility bill payments recorded yet.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- TAB 3: LOANS & EMI CALCULATOR -->
+    @if (activeNavTab === 'loans') {
+      <div class="dashboard-grid">
+        <!-- EMI Calculator & Loan Apply Form -->
+        <div class="card">
+          <div class="card-title">
+            <span>🧮 Interactive EMI Calculator</span>
+          </div>
+
+          <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem; text-align:center;">
+            <div style="font-size:0.8rem; color:#15803d; font-weight:700; text-transform:uppercase;">Estimated Monthly EMI</div>
+            <div style="font-size:2.2rem; font-weight:800; color:#15803d; letter-spacing:-1px;">
+              ₹ {{ loanCalculator.emi | number:'1.2-2' }}
+            </div>
+            <div style="font-size:0.75rem; color:#166534; display:flex; justify-content:space-around; margin-top:0.5rem;">
+              <span>Total Interest: <strong>₹ {{ loanCalculator.totalInterest | number:'1.2-2' }}</strong></span>
+              <span>Total Payable: <strong>₹ {{ loanCalculator.totalPay | number:'1.2-2' }}</strong></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Loan Amount (Principal): ₹ {{ loanCalculator.principal | number }}</label>
+            <input 
+              type="range" 
+              min="10000" 
+              max="1000000" 
+              step="5000" 
+              [(ngModel)]="loanCalculator.principal" 
+              (input)="updateLoanEmiPreview(); applyLoanModel.principal = loanCalculator.principal;" 
+              style="width:100%;">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Annual Interest Rate (%): {{ loanCalculator.annualRate }}%</label>
+            <input 
+              type="range" 
+              min="6" 
+              max="24" 
+              step="0.25" 
+              [(ngModel)]="loanCalculator.annualRate" 
+              (input)="updateLoanEmiPreview(); applyLoanModel.annualRate = loanCalculator.annualRate;" 
+              style="width:100%;">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Tenure (Months): {{ loanCalculator.tenureMonths }} Months</label>
+            <input 
+              type="range" 
+              min="6" 
+              max="120" 
+              step="6" 
+              [(ngModel)]="loanCalculator.tenureMonths" 
+              (input)="updateLoanEmiPreview(); applyLoanModel.tenureMonths = loanCalculator.tenureMonths;" 
+              style="width:100%;">
+          </div>
+
+          <div style="border-top: 1px solid #e2e8f0; padding-top:1.25rem; margin-top:1.25rem;">
+            <div class="card-title" style="font-size:1.05rem;">📝 Submit Loan Application</div>
+            <form (ngSubmit)="onApplyLoan()">
+              <div class="form-group">
+                <label class="form-label">Loan Category</label>
+                <select [(ngModel)]="applyLoanModel.loanType" name="loanType" class="form-control">
+                  <option value="PERSONAL">Personal Loan (10.5%)</option>
+                  <option value="HOME">Home Loan (8.4%)</option>
+                  <option value="EDUCATION">Education Loan (9.2%)</option>
+                  <option value="VEHICLE">Vehicle Loan (8.9%)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Purpose of Loan</label>
+                <input 
+                  type="text" 
+                  [(ngModel)]="applyLoanModel.purpose" 
+                  name="purpose" 
+                  class="form-control" 
+                  placeholder="e.g. Laptop, Medical, Home Renovation" 
+                  required>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block">Apply for ₹ {{ applyLoanModel.principal | number }} Loan</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- My Loans List -->
+        <div class="card">
+          <div class="card-title">
+            <span>📄 My Loan Applications</span>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ref / Date</th>
+                  <th>Category</th>
+                  <th>Principal</th>
+                  <th>Monthly EMI</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (l of myLoans(); track l.id) {
+                  <tr>
+                    <td>
+                      <strong>#{{ l.id }}</strong><br>
+                      <small class="text-muted">{{ l.appliedAt | date:'short' }}</small>
+                    </td>
+                    <td>
+                      <strong>{{ l.loanType }}</strong><br>
+                      <small>{{ l.purpose }}</small>
+                    </td>
+                    <td><strong>₹ {{ l.principalAmount | number:'1.2-2' }}</strong><br><small>{{ l.tenureMonths }} mos &#64; {{ l.annualInterestRate }}%</small></td>
+                    <td><strong style="color:#15803d;">₹ {{ l.monthlyEmi | number:'1.2-2' }}</strong></td>
+                    <td>
+                      <span [class]="'status-badge ' + l.status.toLowerCase()">{{ l.status }}</span>
+                      @if (l.adminRemarks) {
+                        <br><small class="text-muted">{{ l.adminRemarks }}</small>
+                      }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="empty-state">No loan applications yet. Calculate and apply on the left!</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- TAB 4: INVESTMENTS (FD / RD / MUTUAL FUNDS) -->
+    @if (activeNavTab === 'investments') {
+      <div class="dashboard-grid">
+        <!-- FD Simulator & Invest Form -->
+        <div class="card">
+          <div class="card-title">
+            <span>📈 Wealth Builder & FD Simulator</span>
+          </div>
+
+          <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem; text-align:center;">
+            <div style="font-size:0.8rem; color:#0f766e; font-weight:700; text-transform:uppercase;">Estimated Maturity Return</div>
+            <div style="font-size:2.2rem; font-weight:800; color:#0f766e; letter-spacing:-1px;">
+              ₹ {{ fdCalculator.maturity | number:'1.2-2' }}
+            </div>
+            <div style="font-size:0.75rem; color:#115e59; margin-top:0.35rem;">
+              Profit / Interest: <strong>₹ {{ fdCalculator.interest | number:'1.2-2' }}</strong> (Compounded Quarterly)
+            </div>
+          </div>
+
+          <form (ngSubmit)="onCreateInvestment()">
+            <div class="form-group">
+              <label class="form-label">Investment Type</label>
+              <select [(ngModel)]="createInvModel.type" name="invType" class="form-control">
+                <option value="FIXED_DEPOSIT">Fixed Deposit (FD) - Guaranteed 7.50%</option>
+                <option value="RECURRING_DEPOSIT">Recurring Deposit (RD) - 7.00%</option>
+                <option value="MUTUAL_FUND">Mutual Fund (Equity Growth) - 14.50%</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Plan Name</label>
+              <input type="text" [(ngModel)]="createInvModel.planName" name="planName" class="form-control" placeholder="e.g. BankEase Tax Saver FD" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Amount (₹)</label>
+              <input 
+                type="number" 
+                [(ngModel)]="createInvModel.amount" 
+                (input)="fdCalculator.principal = createInvModel.amount; updateFdPreview()" 
+                name="amount" 
+                class="form-control" 
+                min="1000" 
+                step="500" 
+                required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tenure (Months)</label>
+              <select 
+                [(ngModel)]="createInvModel.tenureMonths" 
+                (change)="fdCalculator.tenureMonths = createInvModel.tenureMonths; updateFdPreview()" 
+                name="tenure" 
+                class="form-control">
+                <option [value]="6">6 Months</option>
+                <option [value]="12">12 Months (1 Year)</option>
+                <option [value]="24">24 Months (2 Years)</option>
+                <option [value]="36">36 Months (3 Years)</option>
+                <option [value]="60">60 Months (5 Years)</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Confirm & Invest ₹ {{ createInvModel.amount | number }}</button>
+          </form>
+        </div>
+
+        <!-- Active Investments Portfolio -->
+        <div class="card">
+          <div class="card-title">
+            <span>💼 Active Investment Portfolio</span>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Plan / Ref</th>
+                  <th>Type</th>
+                  <th>Invested</th>
+                  <th>Maturity Amount</th>
+                  <th>Status / Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (inv of myInvestments(); track inv.id) {
+                  <tr>
+                    <td>
+                      <strong>{{ inv.planName }}</strong><br>
+                      <small class="text-muted">#{{ inv.id }} &bull; Since {{ inv.startDate }}</small>
+                    </td>
+                    <td><span class="role-badge customer">{{ inv.investmentType }}</span></td>
+                    <td><strong>₹ {{ inv.investedAmount | number:'1.2-2' }}</strong><br><small>{{ inv.interestOrReturnRate }}% p.a.</small></td>
+                    <td><strong style="color:#0f766e;">₹ {{ inv.maturityAmount | number:'1.2-2' }}</strong></td>
+                    <td>
+                      <span [class]="'status-badge ' + inv.status.toLowerCase()">{{ inv.status }}</span>
+                      @if (inv.status === 'ACTIVE') {
+                        <button type="button" (click)="onCloseInvestment(inv)" class="btn btn-danger btn-sm" style="display:block; margin-top:0.35rem; font-size:0.7rem; padding:0.15rem 0.4rem;">
+                          Liquidate
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="empty-state">No active investments found. Start your first FD or Mutual Fund!</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- TAB 5: COMPLIANCE, KYC & SECURITY -->
+    @if (activeNavTab === 'compliance') {
+      <div class="dashboard-grid">
+        <!-- KYC & Limits Control Card -->
+        <div class="card">
+          <div class="card-title">
+            <span>🛡️ Regulatory Compliance & KYC</span>
+          </div>
+
+          <!-- KYC Badge Card -->
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700; color:#64748b;">KYC Verification Status</div>
+                <div style="font-size:1.2rem; font-weight:800; color:#1e3a8a;">
+                  {{ kycDetails()?.kycStatus || 'VERIFIED' }}
+                </div>
+              </div>
+              <span class="status-badge success">RBI Compliant</span>
+            </div>
+            <p style="font-size:0.8rem; color:#64748b; margin-top:0.5rem;">
+              Your identity is verified. Unlimited transactions are enabled within daily thresholds.
+            </p>
+            <button type="button" (click)="onUpdateKyc()" class="btn btn-secondary btn-sm" style="margin-top:0.5rem;">
+              Re-Verify Documents
+            </button>
+          </div>
+
+          <!-- Daily Limit Management -->
+          <div class="card-title" style="font-size:1.05rem;">⚙️ Daily Transfer Limit Control</div>
+          <form (ngSubmit)="onUpdateDailyLimit()">
+            <div class="form-group">
+              <label class="form-label">Current Daily Limit (₹)</label>
+              <input type="number" [(ngModel)]="dailyLimitInput" name="dailyLimit" class="form-control" min="1000" step="5000" required>
+              <div class="form-hint">Protects your account against unauthorized high-frequency withdrawals.</div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Update Daily Limit</button>
+          </form>
+        </div>
+
+        <!-- User Audit Log Stream -->
+        <div class="card">
+          <div class="card-title">
+            <span>📑 Personal Security Audit Log</span>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>IP Address</th>
+                  <th>Details</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (log of auditLogs(); track log.id) {
+                  <tr>
+                    <td><span class="role-badge customer">{{ log.action }}</span></td>
+                    <td><code>{{ log.ipAddress }}</code></td>
+                    <td><small>{{ log.details }}</small></td>
+                    <td><small class="text-muted">{{ log.timestamp | date:'short' }}</small></td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="4" class="empty-state">No audit logs recorded yet.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+
   }
 
   <!-- ======================================================================
-       VIEW 3: Admin Management Console (Role ADMIN only)
+       ADMIN VIEWS (Role ADMIN only)
        ====================================================================== -->
   @if (auth.isLoggedIn() && auth.isAdmin()) {
-    <section>
-      <div class="admin-header">
-        <h2 class="admin-title">🛡️ Administrator Management Console</h2>
-        <p class="text-muted">System-wide view of all registered customers, bank accounts, and transactions.</p>
-      </div>
-
-      <!-- Stats Row -->
+    
+    <!-- ADMIN TAB 1: USERS & ACCOUNTS -->
+    @if (adminNavTab === 'overview') {
       <div class="admin-stats">
         <div class="stat-card">
           <div class="stat-title">Total Registered Users</div>
@@ -341,10 +891,10 @@
         </div>
       </div>
 
-      <!-- Admin Table 1: All Users -->
+      <!-- All Users Table with Lockout Toggle -->
       <div class="card mb-4">
         <div class="card-title">
-          <span>👥 All Registered Users</span>
+          <span>👥 All Registered Users & Security Status</span>
         </div>
         <div class="table-container">
           <table class="data-table">
@@ -354,8 +904,9 @@
                 <th>Full Name</th>
                 <th>Email</th>
                 <th>Role</th>
+                <th>KYC Status</th>
+                <th>Account State</th>
                 <th>Linked Accounts</th>
-                <th>Registered At</th>
               </tr>
             </thead>
             <tbody>
@@ -365,12 +916,22 @@
                   <td><strong>{{ u.fullName }}</strong></td>
                   <td>{{ u.email }}</td>
                   <td><span [class]="'role-badge ' + u.role.toLowerCase()">{{ u.role }}</span></td>
+                  <td><span class="status-badge success">{{ u.kycStatus || 'VERIFIED' }}</span></td>
+                  <td>
+                    @if (u.accountLocked) {
+                      <span class="status-badge failed">LOCKED</span>
+                      <button type="button" (click)="onUnlockUser(u)" class="btn btn-secondary btn-sm" style="margin-left:0.5rem; font-size:0.7rem; padding:0.15rem 0.35rem;">
+                        Unlock
+                      </button>
+                    } @else {
+                      <span class="status-badge success">ACTIVE</span>
+                    }
+                  </td>
                   <td>
                     @for (acc of u.accounts; track acc.id) {
                       <small>{{ acc.accountNumber }} (₹{{ acc.balance | number:'1.2-2' }}) </small>
                     }
                   </td>
-                  <td><small>{{ u.createdAt | date:'short' }}</small></td>
                 </tr>
               }
             </tbody>
@@ -378,10 +939,10 @@
         </div>
       </div>
 
-      <!-- Admin Table 2: All Accounts -->
+      <!-- All Accounts Table -->
       <div class="card mb-4">
         <div class="card-title">
-          <span>🏦 All System Accounts</span>
+          <span>🏦 All System Bank Accounts</span>
         </div>
         <div class="table-container">
           <table class="data-table">
@@ -390,7 +951,7 @@
                 <th>Account Number</th>
                 <th>Account Holder</th>
                 <th>Email</th>
-                <th>Account Type</th>
+                <th>Type</th>
                 <th>Current Balance</th>
               </tr>
             </thead>
@@ -408,46 +969,105 @@
           </table>
         </div>
       </div>
+    }
 
-      <!-- Admin Table 3: All Transactions Audit Trail -->
+    <!-- ADMIN TAB 2: LOAN APPROVALS WORKFLOW -->
+    @if (adminNavTab === 'loans') {
       <div class="card">
         <div class="card-title">
-          <span>📑 System-Wide Transaction Audit Log</span>
+          <span>💰 Loan Approval & Disbursement Queue</span>
         </div>
+
         <div class="table-container">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Tx ID</th>
-                <th>Timestamp</th>
-                <th>Source Account</th>
-                <th>Destination Account</th>
+                <th>Loan Ref</th>
+                <th>Applicant</th>
+                <th>Category</th>
                 <th>Amount</th>
-                <th>Description</th>
+                <th>Tenure / EMI</th>
+                <th>Purpose</th>
                 <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              @for (tx of adminTransactions(); track tx.id) {
+              @for (l of allLoans(); track l.id) {
                 <tr>
-                  <td><strong>#{{ tx.id }}</strong></td>
-                  <td><small>{{ tx.createdAt | date:'short' }}</small></td>
-                  <td>{{ tx.fromAccountNumber }} ({{ tx.fromOwnerName }})</td>
-                  <td>{{ tx.toAccountNumber }} ({{ tx.toOwnerName }})</td>
-                  <td><strong>₹ {{ tx.amount | number:'1.2-2' }}</strong></td>
-                  <td><small>{{ tx.description || tx.type }}</small></td>
+                  <td><strong>#{{ l.id }}</strong><br><small>{{ l.appliedAt | date:'short' }}</small></td>
+                  <td><strong>{{ l.user?.fullName || 'Customer' }}</strong><br><small>{{ l.user?.email || 'N/A' }}</small></td>
+                  <td><span class="role-badge customer">{{ l.loanType }}</span></td>
+                  <td><strong style="color:#15803d; font-size:1.05rem;">₹ {{ l.principalAmount | number:'1.2-2' }}</strong></td>
+                  <td>{{ l.tenureMonths }} mos &#64; {{ l.annualInterestRate }}%<br><small>EMI: ₹{{ l.monthlyEmi | number:'1.2-2' }}</small></td>
+                  <td>{{ l.purpose }}</td>
+                  <td><span [class]="'status-badge ' + l.status.toLowerCase()">{{ l.status }}</span></td>
                   <td>
-                    <span [class]="'status-badge ' + tx.status.toLowerCase()">
-                      {{ tx.status }}
-                    </span>
+                    @if (l.status === 'PENDING') {
+                      <div style="display:flex; gap:0.35rem;">
+                        <button type="button" (click)="onApproveLoan(l)" class="btn btn-primary btn-sm" style="font-size:0.75rem; padding:0.25rem 0.5rem; background:#16a34a;">
+                          Approve & Disburse
+                        </button>
+                        <button type="button" (click)="onRejectLoan(l)" class="btn btn-danger btn-sm" style="font-size:0.75rem; padding:0.25rem 0.5rem;">
+                          Reject
+                        </button>
+                      </div>
+                    } @else {
+                      <small class="text-muted">{{ l.adminRemarks || 'Completed' }}</small>
+                    }
                   </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="8" class="empty-state">No loan applications in the system.</td>
                 </tr>
               }
             </tbody>
           </table>
         </div>
       </div>
-    </section>
+    }
+
+    <!-- ADMIN TAB 3: SYSTEM AUDIT LOGS -->
+    @if (adminNavTab === 'audit') {
+      <div class="card">
+        <div class="card-title">
+          <span>📑 Real-Time Enterprise Security Audit Trail</span>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Log ID</th>
+                <th>Timestamp</th>
+                <th>Actor / Email</th>
+                <th>Action</th>
+                <th>IP Address</th>
+                <th>Audit Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (log of auditLogs(); track log.id) {
+                <tr>
+                  <td><strong>#{{ log.id }}</strong></td>
+                  <td><small>{{ log.timestamp | date:'short' }}</small></td>
+                  <td><strong>{{ log.userEmail }}</strong></td>
+                  <td><span class="role-badge customer">{{ log.action }}</span></td>
+                  <td><code>{{ log.ipAddress }}</code></td>
+                  <td><small>{{ log.details }}</small></td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="empty-state">No audit logs recorded.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
   }
 
 </main>
@@ -463,5 +1083,5 @@
 
 <!-- Footer -->
 <footer class="footer">
-  <p><strong>BankEase: NextGen Net Banking</strong> &bull; Angular Frontend &bull; Spring Boot 4 Backend &bull; HCL Collaboration</p>
+  <p><strong>BankEase: NextGen Digital Banking Suite</strong> &bull; HCL Collaboration Project &bull; Spring Boot 4 + Angular 22</p>
 </footer>

@@ -21,6 +21,7 @@ public class TransferRequest {
     private BigDecimal amount;
 
     private String description;
+    private String otpCode;
 
     public TransferRequest() {
     }
@@ -30,6 +31,14 @@ public class TransferRequest {
         this.toAccountNumber = toAccountNumber;
         this.amount = amount;
         this.description = description;
+    }
+
+    public String getOtpCode() {
+        return otpCode;
+    }
+
+    public void setOtpCode(String otpCode) {
+        this.otpCode = otpCode;
     }
 
     public String getFromAccountNumber() {

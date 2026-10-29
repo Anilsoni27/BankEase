@@ -569,3 +569,46 @@
   margin-top: auto;
 }
 
+
+/* Module Navigation Bar */
+.module-nav-bar {
+  background-color: #1e3a8a;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-x: auto;
+}
+
+.admin-bar {
+  background-color: #0f172a;
+}
+
+.module-nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.module-nav-btn {
+  background: transparent;
+  color: #cbd5e1;
+  border: none;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.module-nav-btn:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.module-nav-btn.active {
+  color: #ffffff;
+  border-bottom-color: #38bdf8;
+  background-color: rgba(255, 255, 255, 0.08);
+}

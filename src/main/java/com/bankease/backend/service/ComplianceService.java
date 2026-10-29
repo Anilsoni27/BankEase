@@ -1,0 +1,123 @@
+package com.bankease.backend.service;
+
+import com.bankease.backend.entity.KycStatus;
+import com.bankease.backend.entity.OtpVerification;
+import com.bankease.backend.entity.Role;
+import com.bankease.backend.entity.User;
+import com.bankease.backend.exception.BankeaseException;
+import com.bankease.backend.exception.ResourceNotFoundException;
+import com.bankease.backend.exception.UnauthorizedException;
+import com.bankease.backend.repository.OtpVerificationRepository;
+import com.bankease.backend.repository.UserRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+@Service
+public class ComplianceService {
+
+    private final OtpVerificationRepository otpVerificationRepository;
+    private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
+    private final SecureRandom secureRandom = new SecureRandom();
+
+    public ComplianceService(OtpVerificationRepository otpVerificationRepository,
+                             UserRepository userRepository,
+                             AuditLogService auditLogService) {
+        this.otpVerificationRepository = otpVerificationRepository;
+        this.userRepository = userRepository;
+        this.auditLogService = auditLogService;
+    }
+
+    /**
+     * Generates a 6-digit OTP for 2-factor authentication / high value transfer authorization.
+     */
+    @Transactional
+    public Map<String, Object> generateOtp(String userEmail, String purpose) {
+        String otpCode = String.format("%06d", secureRandom.nextInt(1000000));
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
+
+        OtpVerification otp = new OtpVerification(userEmail, otpCode, purpose, expiresAt);
+        otpVerificationRepository.save(otp);
+
+        auditLogService.log(userEmail, "OTP_GENERATED", "OTP generated for purpose: " + purpose);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("message", "OTP sent successfully (Simulated for Demo). Valid for 5 minutes.");
+        result.put("otpCode", otpCode); // Returned for college demo & testing convenience!
+        result.put("purpose", purpose);
+        result.put("expiresAt", expiresAt);
+        return result;
+    }
+
+    /**
+     * Verifies the submitted OTP code.
+     */
+    @Transactional
+    public boolean verifyOtp(String userEmail, String otpCode, String purpose) {
+        OtpVerification otp = otpVerificationRepository
+                .findTopByUserEmailAndPurposeAndIsUsedFalseOrderByCreatedAtDesc(userEmail, purpose)
+                .orElseThrow(() -> new BankeaseException("No active OTP found. Please request a new one."));
+
+        if (otp.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BankeaseException("OTP has expired. Please request a new OTP.");
+        }
+
+        if (!otp.getOtpCode().equals(otpCode.trim())) {
+            auditLogService.log(userEmail, "OTP_FAILED", "Incorrect OTP submitted for: " + purpose);
+            throw new BankeaseException("Invalid OTP code. Please try again.");
+        }
+
+        otp.setUsed(true);
+        otpVerificationRepository.save(otp);
+        auditLogService.log(userEmail, "OTP_VERIFIED", "OTP verified successfully for: " + purpose);
+        return true;
+    }
+
+    /**
+     * Updates KYC status for a user.
+     */
+    @Transactional
+    public User updateKyc(User user, String documentType, String documentNumber) {
+        user.setKycStatus(KycStatus.VERIFIED);
+        User saved = userRepository.save(user);
+        auditLogService.log(user.getEmail(), "KYC_VERIFIED", "KYC verified using " + documentType + ": " + documentNumber);
+        return saved;
+    }
+
+    /**
+     * Updates daily transfer limit.
+     */
+    @Transactional
+    public User updateDailyLimit(User user, BigDecimal newLimit) {
+        if (newLimit.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BankeaseException("Daily limit must be greater than zero.");
+        }
+        user.setDailyLimit(newLimit);
+        User saved = userRepository.save(user);
+        auditLogService.log(user.getEmail(), "LIMIT_UPDATED", "Daily transfer limit updated to ₹" + newLimit);
+        return saved;
+    }
+
+    /**
+     * Admin unlocks a locked account.
+     */
+    @Transactional
+    public User unlockUser(Long userId, User adminUser) {
+        if (adminUser.getRole() != Role.ADMIN) {
+            throw new UnauthorizedException("Only Administrators can unlock accounts.");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        user.setAccountLocked(false);
+        user.setFailedLoginAttempts(0);
+        User saved = userRepository.save(user);
+        auditLogService.log(adminUser.getEmail(), "ACCOUNT_UNLOCKED", "Unlocked customer account: " + user.getEmail());
+        return saved;
+    }
+}

@@ -61,6 +61,9 @@ public class AdminService {
                     user.getFullName(),
                     user.getEmail(),
                     user.getRole().name(),
+                    user.getKycStatus() != null ? user.getKycStatus().name() : "VERIFIED",
+                    user.isAccountLocked(),
+                    user.getDailyLimit(),
                     user.getCreatedAt(),
                     accountResponses
             );

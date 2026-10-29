@@ -11,11 +11,12 @@
 
 ### Key Highlights
 - **Layered Architecture:** Controller $\rightarrow$ Service $\rightarrow$ Repository $\rightarrow$ Database.
-- **DTO Layer:** Strict separation between database entities and API request/response payloads.
-- **Transactional Fund Transfers:** Guaranteed ACID compliance with `@Transactional` and isolated audit logging via `Propagation.REQUIRES_NEW`.
-- **Lightweight Token Authentication:** Session tokens generated via random UUID stored in memory; sent via `Authorization: Bearer <token>` (no bulky Spring Security starter).
-- **BCrypt Security:** Passwords hashed with salted BCrypt via `spring-security-crypto`.
-- **Automatic Account Opening:** New registrations immediately get a `SAVINGS` account pre-credited with ₹10,000 demo funds.
+- **Enterprise Security (JWT + Spring Security):** HMAC-SHA256 signed JSON Web Tokens, `JwtAuthenticationFilter`, `SecurityFilterChain`, and salted BCrypt encryption.
+- **Transactional Fund Transfers:** Guaranteed ACID compliance with `@Transactional`, daily limit compliance, and high-value 2FA OTP verification.
+- **Bill Pay & Utilities:** Registered payees, instant payments (Electricity, Water, Broadband, Mobile), and scheduled auto-pay.
+- **Loan Module & EMI Calculator:** Real-time EMI mathematical engine ($E = \frac{P \cdot r \cdot (1+r)^n}{(1+r)^n - 1}$), customer loan applications, and Administrator approval/disbursement workflow.
+- **Wealth & Investments:** Fixed Deposit (FD) compound interest simulator, Recurring Deposits (RD), and Mutual Funds portfolio management.
+- **Compliance & Risk Controls:** 3-strike account lockout defense, daily transfer limit enforcement, KYC status verification, and real-time security audit trails.
 - **Angular Single-Page App (SPA):** Modern Angular frontend (`frontend/`) featuring standalone components, Angular Signals, functional HTTP Bearer token interceptor, and responsive UI. The production build is integrated directly into Spring Boot (`src/main/resources/static/`).
 - **Automatic Data Seeding:** Ready-to-demo data created on first boot (`admin`, `rahul`, `priya`).
 
@@ -344,20 +345,74 @@ All endpoints return uniform JSON responses wrapped in `ApiResponse<T>` or `Erro
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/admin/users` | List all users with their linked accounts |
+| `GET` | `/api/admin/users` | List all users with linked accounts & compliance status |
 | `GET` | `/api/admin/accounts` | List all system bank accounts and balances |
 | `GET` | `/api/admin/transactions` | Full audit log of all system transactions |
 
 ---
 
-## 🌟 6. Future Scope (For Project Report & Viva)
+### F. Bill Pay & Utility Services (`/api/bills`)
+*(Protected: Requires `Role.CUSTOMER` or `Role.ADMIN`)*
 
-During your evaluation or project viva with faculty and HCL collaborators, you can discuss the following planned enhancements:
-1. **Stateless JWT with Refresh Tokens:** Upgrading the in-memory token store to signed JWT tokens with RSA-256 and Redis session storage.
-2. **Two-Factor Authentication (2FA):** Sending time-based OTPs via SMS/Email before executing transfers exceeding certain limits.
-3. **Scheduled & Recurring Payments:** Utilizing Spring `@Scheduled` to automate monthly standing instructions.
-4. **Loan & Fixed Deposit (FD) Calculators:** Allowing users to open compound interest fixed deposits.
-5. **Microservices Migration:** Separating Account Service and Transfer Engine with Apache Kafka for asynchronous transaction processing.
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/bills/payees` | List registered utility payees (Electricity, Water, DTH, etc.) |
+| `POST` | `/api/bills/payees` | Register a new utility payee |
+| `POST` | `/api/bills/pay` | Instant bill payment debited directly from bank account |
+| `POST` | `/api/bills/schedule` | Schedule a future or recurring utility bill payment |
+| `GET` | `/api/bills/history` | View complete bill payment history and statuses |
+
+---
+
+### G. Loan & EMI Engine (`/api/loans`)
+*(Protected)*
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/loans/calculate-emi` | Calculate exact EMI using mathematical formula ($E = \frac{P \cdot r \cdot (1+r)^n}{(1+r)^n - 1}$) |
+| `POST` | `/api/loans/apply` | Apply for Personal, Home, Education, or Vehicle loan |
+| `GET` | `/api/loans/my-loans` | View customer active and historical loans |
+| `GET` | `/api/loans/all` | Admin: review all customer loan applications |
+| `POST` | `/api/loans/{id}/approve` | Admin: approve loan & automatically disburse funds to account |
+| `POST` | `/api/loans/{id}/reject` | Admin: reject loan application with remarks |
+
+---
+
+### H. Wealth & Investments Simulator (`/api/investments`)
+*(Protected)*
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/investments/calculate-fd` | Simulate FD returns with quarterly compounding |
+| `POST` | `/api/investments` | Book a Fixed Deposit, Recurring Deposit, or Mutual Fund |
+| `GET` | `/api/investments/my-investments`| Portfolio view of all active and matured investments |
+| `POST` | `/api/investments/{id}/close` | Prematurely liquidate or redeem investment with proceeds credited |
+
+---
+
+### I. Compliance, KYC & Risk Engine (`/api/compliance`)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/compliance/send-otp` | Generate time-sensitive 6-digit OTP for 2FA transfers ($\ge$ ₹25,000) |
+| `POST` | `/api/compliance/verify-otp` | Validate 2FA OTP |
+| `GET` | `/api/compliance/kyc-status` | Check customer KYC verification tier |
+| `POST` | `/api/compliance/update-kyc` | Update KYC status (PENDING, VERIFIED, REJECTED) |
+| `POST` | `/api/compliance/update-limit` | Modify daily transaction compliance limit |
+| `GET` | `/api/compliance/audit-logs` | Admin: access real-time security audit trails |
+| `POST` | `/api/compliance/unlock-user/{id}` | Admin: unlock accounts frozen after 3 failed login attempts |
+
+---
+
+## 🌟 6. Enterprise Features & Viva Highlights
+
+During your evaluation or project viva with faculty and HCL collaborators, you can highlight how BankEase goes beyond a typical student project:
+1. **Stateless JWT Security Architecture:** Modern stateless authentication using Spring Security 6 `SecurityFilterChain` with custom `JwtAuthenticationFilter` verifying HMAC-SHA256 tokens on every protected request.
+2. **Three-Strike Brute Force Protection:** Automatic account lockout triggered upon 3 consecutive failed login attempts, recorded in audit logs with administrative unlock capability.
+3. **High-Value 2FA Step-Up Authentication:** Transactions exceeding ₹25,000 strictly enforce simulated 6-digit one-time password (OTP) verification before debit execution.
+4. **Loan Lifecycle & Disbursement:** Integrated financial math for EMI computation and an end-to-end admin approval workflow that automatically credits loan amounts to the borrower's account via atomic database transactions.
+5. **Wealth Management & Compound Interest:** Accurate quarterly compounding Fixed Deposit simulator ($A = P(1 + r/4)^{4t}$) and portfolio tracking.
+6. **Immutable Security Audit Trail:** Every sensitive action (logins, lockouts, limit changes, loans, transfers) is committed to an append-only audit log table with client IP tracking.
 
 ---
 Developed as a solo academic project in collaboration with **HCL**.

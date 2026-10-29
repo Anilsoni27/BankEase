@@ -3,6 +3,7 @@ package com.bankease.backend.service;
 import com.bankease.backend.dto.TransferRequest;
 import com.bankease.backend.dto.TransferResponse;
 import com.bankease.backend.entity.*;
+import com.bankease.backend.exception.BankeaseException;
 import com.bankease.backend.exception.InsufficientBalanceException;
 import com.bankease.backend.exception.InvalidTransferException;
 import com.bankease.backend.exception.ResourceNotFoundException;
@@ -14,48 +15,31 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * TransferService coordinates atomic fund transfers between bank accounts.
- *
- * ============================================================================
- * EXPLANATION OF @Transactional LOGIC AND ACID PROPERTIES
- * ============================================================================
- * 1. Atomicity: In a bank transfer, two balance changes occur:
- *      Step A: Debit money from Sender account.
- *      Step B: Credit money into Receiver account.
- *    If the server crashes or an unexpected error occurs during Step B,
- *    Spring rolls back Step A completely so money never disappears into thin air.
- *
- * 2. Consistency: Database constraints (like NOT NULL, UNIQUE, and foreign keys)
- *    are enforced. The sum of balances remains balanced.
- *
- * 3. Isolation: Concurrent transfers cannot view partial states or dirty reads.
- *
- * 4. Durability: Once committed to MySQL, the new balances are permanent.
- *
- * 5. Audit Logging with Propagation.REQUIRES_NEW:
- *    When a transfer fails validation (e.g., Insufficient Balance), we record
- *    a FAILED Transaction record via TransactionRecordService, which runs in its
- *    own independent transaction so the audit trail is never rolled back!
- * ============================================================================
+ * TransferService coordinates atomic fund transfers between bank accounts
+ * with compliance limits and OTP security checks.
  */
 @Service
 public class TransferService {
 
     private final AccountRepository accountRepository;
     private final TransactionRecordService transactionRecordService;
+    private final ComplianceService complianceService;
+    private final AuditLogService auditLogService;
+
+    private static final BigDecimal HIGH_VALUE_THRESHOLD = new BigDecimal("25000.00");
 
     public TransferService(AccountRepository accountRepository,
-                           TransactionRecordService transactionRecordService) {
+                           TransactionRecordService transactionRecordService,
+                           ComplianceService complianceService,
+                           AuditLogService auditLogService) {
         this.accountRepository = accountRepository;
         this.transactionRecordService = transactionRecordService;
+        this.complianceService = complianceService;
+        this.auditLogService = auditLogService;
     }
 
     /**
-     * Executes a fund transfer from one account to another.
-     *
-     * @param currentUser Authenticated user initiating the transfer
-     * @param request     Transfer parameters (source, destination, amount, remarks)
-     * @return TransferResponse with receipt details
+     * Executes an atomic fund transfer.
      */
     @Transactional
     public TransferResponse transferFunds(User currentUser, TransferRequest request) {
@@ -66,34 +50,24 @@ public class TransferService {
                 ? request.getDescription().trim()
                 : "Fund transfer from " + fromAccNum + " to " + toAccNum;
 
-        // --------------------------------------------------------------------
-        // Validation 1: Amount must be greater than zero
-        // --------------------------------------------------------------------
+        // 1. Amount > 0 check
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new InvalidTransferException("Transfer amount must be strictly greater than zero.");
         }
 
-        // --------------------------------------------------------------------
-        // Validation 2: Source account must exist
-        // --------------------------------------------------------------------
+        // 2. Source account check
         Account fromAccount = accountRepository.findByAccountNumber(fromAccNum)
                 .orElseThrow(() -> new ResourceNotFoundException("Source account " + fromAccNum + " does not exist."));
 
-        // --------------------------------------------------------------------
-        // Validation 3: Current user must be the owner of the source account
-        // (unless current user is an ADMIN)
-        // --------------------------------------------------------------------
+        // 3. Ownership check
         boolean isOwner = fromAccount.getOwner().getId().equals(currentUser.getId());
         boolean isAdmin = currentUser.getRole() == Role.ADMIN;
         if (!isOwner && !isAdmin) {
             throw new InvalidTransferException("Unauthorized: You do not own the source account " + fromAccNum + ".");
         }
 
-        // --------------------------------------------------------------------
-        // Validation 4: Cannot transfer to the same account
-        // --------------------------------------------------------------------
+        // 4. Same account check
         if (fromAccNum.equalsIgnoreCase(toAccNum)) {
-            // Save a FAILED transaction record for audit compliance
             transactionRecordService.record(
                     fromAccount,
                     fromAccount,
@@ -105,14 +79,11 @@ public class TransferService {
             throw new InvalidTransferException("Cannot transfer funds to the same account.");
         }
 
-        // --------------------------------------------------------------------
-        // Validation 5: Destination account must exist
-        // --------------------------------------------------------------------
+        // 5. Destination account check
         Account toAccount = accountRepository.findByAccountNumber(toAccNum)
                 .orElse(null);
 
         if (toAccount == null) {
-            // Save a FAILED transaction record
             transactionRecordService.record(
                     fromAccount,
                     null,
@@ -124,11 +95,30 @@ public class TransferService {
             throw new ResourceNotFoundException("Destination account " + toAccNum + " was not found.");
         }
 
-        // --------------------------------------------------------------------
-        // Validation 6: Sender must have sufficient balance
-        // --------------------------------------------------------------------
+        // 6. Daily limit compliance check
+        if (currentUser.getDailyLimit() != null && amount.compareTo(currentUser.getDailyLimit()) > 0) {
+            transactionRecordService.record(
+                    fromAccount,
+                    toAccount,
+                    amount,
+                    TransactionType.TRANSFER,
+                    TransactionStatus.FAILED,
+                    "Compliance rejection: Amount ₹" + amount + " exceeds daily limit of ₹" + currentUser.getDailyLimit()
+            );
+            auditLogService.log(currentUser.getEmail(), "TRANSFER_LIMIT_EXCEEDED", "Attempted transfer ₹" + amount + " above limit ₹" + currentUser.getDailyLimit());
+            throw new BankeaseException("Transfer exceeds your daily transfer limit of ₹" + currentUser.getDailyLimit() + ". Adjust your limit in Compliance Settings.");
+        }
+
+        // 7. High-Value Transfer OTP Compliance (Threshold: ₹ 25,000)
+        if (amount.compareTo(HIGH_VALUE_THRESHOLD) >= 0) {
+            if (request.getOtpCode() == null || request.getOtpCode().trim().isEmpty()) {
+                throw new BankeaseException("High-value transfer of ₹" + amount + " requires 2-factor OTP authorization. Please generate and provide an OTP.");
+            }
+            complianceService.verifyOtp(currentUser.getEmail(), request.getOtpCode().trim(), "HIGH_VALUE_TRANSFER");
+        }
+
+        // 8. Balance check
         if (fromAccount.getBalance().compareTo(amount) < 0) {
-            // Save a FAILED transaction record
             transactionRecordService.record(
                     fromAccount,
                     toAccount,
@@ -143,15 +133,12 @@ public class TransferService {
         // --------------------------------------------------------------------
         // ATOMIC EXECUTION: Balance mutation
         // --------------------------------------------------------------------
-        // 1. Debit sender
         fromAccount.setBalance(fromAccount.getBalance().subtract(amount));
         accountRepository.save(fromAccount);
 
-        // 2. Credit receiver
         toAccount.setBalance(toAccount.getBalance().add(amount));
         accountRepository.save(toAccount);
 
-        // 3. Record successful transaction
         Transaction successTx = transactionRecordService.record(
                 fromAccount,
                 toAccount,
@@ -161,7 +148,8 @@ public class TransferService {
                 description
         );
 
-        // 4. Return receipt DTO
+        auditLogService.log(currentUser.getEmail(), "TRANSFER_SUCCESS", "Transferred ₹" + amount + " from " + fromAccNum + " to " + toAccNum);
+
         return new TransferResponse(
                 successTx.getId(),
                 TransactionStatus.SUCCESS.name(),
@@ -174,4 +162,3 @@ public class TransferService {
         );
     }
 }
-

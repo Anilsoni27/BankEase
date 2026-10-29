@@ -18,12 +18,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * AuthService handles user registration, password verification, and session token generation.
- *
- * Annotations explained:
- * - @Service: Declares this class as a Spring Service bean.
- * - @Transactional: Ensures operations like creating a user, creating an account,
- *   and recording the initial deposit succeed together or roll back entirely.
+ * AuthService handles user registration, JWT generation, and login security controls.
  */
 @Service
 public class AuthService {
@@ -33,30 +28,27 @@ public class AuthService {
     private final TransactionRecordService transactionRecordService;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
+    private final AuditLogService auditLogService;
 
-    // Initial demo funds gifted to every newly registered customer
     private static final BigDecimal INITIAL_DEMO_BALANCE = new BigDecimal("10000.00");
+    private static final int MAX_FAILED_ATTEMPTS = 3;
 
     public AuthService(UserRepository userRepository,
                        AccountService accountService,
                        TransactionRecordService transactionRecordService,
                        PasswordEncoder passwordEncoder,
-                       TokenService tokenService) {
+                       TokenService tokenService,
+                       AuditLogService auditLogService) {
         this.userRepository = userRepository;
         this.accountService = accountService;
         this.transactionRecordService = transactionRecordService;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
+        this.auditLogService = auditLogService;
     }
 
     /**
-     * Feature 1: Register
-     * 1. Validates that email is unique.
-     * 2. Hashes user password with BCrypt (salted, 10 rounds).
-     * 3. Creates User record with role CUSTOMER.
-     * 4. Automatically opens a SAVINGS account with ₹ 10,000.00 demo balance.
-     * 5. Saves initial DEPOSIT transaction record.
-     * 6. Issues an in-memory session token (random UUID).
+     * Feature 1: Register with JWT & Welcome Bonus
      */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -66,16 +58,15 @@ public class AuthService {
             throw new BankeaseException("An account with email " + cleanEmail + " already exists.");
         }
 
-        // Hash the password securely with BCrypt
         String encodedPassword = passwordEncoder.encode(request.getPassword().trim());
 
-        // Create and save User
         User user = new User(
                 request.getFullName().trim(),
                 cleanEmail,
                 encodedPassword,
                 Role.CUSTOMER
         );
+        user.setKycStatus(KycStatus.VERIFIED);
         User savedUser = userRepository.save(user);
 
         // Open default SAVINGS account with initial balance of 10000
@@ -91,8 +82,10 @@ public class AuthService {
                 "Initial demo credit on account opening"
         );
 
-        // Generate session token and assemble response
-        String token = tokenService.generateToken(savedUser.getId());
+        auditLogService.log(cleanEmail, "REGISTRATION_SUCCESS", "New customer account registered with welcome bonus.");
+
+        // Generate JWT token
+        String token = tokenService.generateToken(savedUser.getId(), savedUser.getEmail(), savedUser.getRole().name());
         AccountResponse accountResponse = accountService.mapToAccountResponse(account);
 
         return new AuthResponse(
@@ -106,28 +99,49 @@ public class AuthService {
     }
 
     /**
-     * Feature 2: Login
-     * 1. Finds user by email.
-     * 2. Compares plain password with stored BCrypt hash using passwordEncoder.matches().
-     * 3. Generates and stores a random UUID session token in memory.
-     * 4. Returns token along with user and account info.
+     * Feature 2: Login with JWT & Account Lockout Compliance (3 Failed Attempts)
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         String cleanEmail = request.getEmail().trim().toLowerCase();
 
         User user = userRepository.findByEmail(cleanEmail)
                 .orElseThrow(() -> new UnauthorizedException("Invalid email or password."));
 
-        // Verify password against BCrypt hash
-        if (!passwordEncoder.matches(request.getPassword().trim(), user.getPassword())) {
-            throw new UnauthorizedException("Invalid email or password.");
+        // Check if account is locked
+        if (user.isAccountLocked()) {
+            auditLogService.log(cleanEmail, "LOGIN_BLOCKED", "Attempt to sign into locked account.");
+            throw new UnauthorizedException("Account is locked due to 3 consecutive failed login attempts. Please contact Administrator to unlock.");
         }
 
-        // Generate session token
-        String token = tokenService.generateToken(user.getId());
+        // Verify password against BCrypt hash
+        if (!passwordEncoder.matches(request.getPassword().trim(), user.getPassword())) {
+            int attempts = user.getFailedLoginAttempts() + 1;
+            user.setFailedLoginAttempts(attempts);
 
-        // Fetch user's active accounts
+            if (attempts >= MAX_FAILED_ATTEMPTS) {
+                user.setAccountLocked(true);
+                userRepository.save(user);
+                auditLogService.log(cleanEmail, "ACCOUNT_LOCKED", "Account locked after 3 consecutive failed login attempts.");
+                throw new UnauthorizedException("Account has been LOCKED due to 3 consecutive failed login attempts. Contact Administrator.");
+            } else {
+                userRepository.save(user);
+                int remaining = MAX_FAILED_ATTEMPTS - attempts;
+                auditLogService.log(cleanEmail, "LOGIN_FAILED", "Invalid password attempt " + attempts + "/" + MAX_FAILED_ATTEMPTS);
+                throw new UnauthorizedException("Invalid email or password. " + remaining + " attempts remaining before account lockout.");
+            }
+        }
+
+        // Reset failed login counter on success
+        if (user.getFailedLoginAttempts() > 0) {
+            user.setFailedLoginAttempts(0);
+            userRepository.save(user);
+        }
+
+        auditLogService.log(cleanEmail, "LOGIN_SUCCESS", "User authenticated successfully via JWT.");
+
+        // Issue JWT token
+        String token = tokenService.generateToken(user.getId(), user.getEmail(), user.getRole().name());
         List<AccountResponse> accounts = accountService.getAccountsByUser(user);
 
         return new AuthResponse(
@@ -141,16 +155,12 @@ public class AuthService {
     }
 
     /**
-     * Logout invalidates the active session token in memory.
+     * Logout
      */
     public void logout(String authHeader) {
         if (authHeader != null) {
-            String token = authHeader.trim();
-            if (token.toLowerCase().startsWith("bearer ")) {
-                token = token.substring(7).trim();
-            }
+            String token = authHeader.trim().replace("Bearer ", "").trim();
             tokenService.invalidateToken(token);
         }
     }
 }
-

@@ -49,6 +49,19 @@ public class User {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private KycStatus kycStatus = KycStatus.VERIFIED;
+
+    @Column(nullable = false)
+    private int failedLoginAttempts = 0;
+
+    @Column(nullable = false)
+    private boolean accountLocked = false;
+
+    @Column(nullable = false, precision = 15, scale = 2)
+    private java.math.BigDecimal dailyLimit = new java.math.BigDecimal("50000.00");
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -116,6 +129,38 @@ public class User {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public KycStatus getKycStatus() {
+        return kycStatus;
+    }
+
+    public void setKycStatus(KycStatus kycStatus) {
+        this.kycStatus = kycStatus;
+    }
+
+    public int getFailedLoginAttempts() {
+        return failedLoginAttempts;
+    }
+
+    public void setFailedLoginAttempts(int failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+    }
+
+    public boolean isAccountLocked() {
+        return accountLocked;
+    }
+
+    public void setAccountLocked(boolean accountLocked) {
+        this.accountLocked = accountLocked;
+    }
+
+    public java.math.BigDecimal getDailyLimit() {
+        return dailyLimit;
+    }
+
+    public void setDailyLimit(java.math.BigDecimal dailyLimit) {
+        this.dailyLimit = dailyLimit;
     }
 
     public LocalDateTime getCreatedAt() {

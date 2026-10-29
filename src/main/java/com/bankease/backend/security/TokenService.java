@@ -3,50 +3,54 @@ package com.bankease.backend.security;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * TokenService manages lightweight in-memory authentication tokens.
- *
- * As specified for this MVP:
- * - A random UUID token is generated on successful login or registration.
- * - Stored in a thread-safe ConcurrentHashMap mapping "UUID token" -> "userId".
- * - Avoids heavyweight JWT/Spring Security configurations for simplicity,
- *   while maintaining clean token-based authorization via HTTP headers.
+ * TokenService bridges JWT token issuance with in-memory active session tracking.
  */
 @Service
 public class TokenService {
 
-    /**
-     * Thread-safe in-memory map storing active user sessions.
-     * Key: session token (UUID string)
-     * Value: database ID of the authenticated user
-     */
+    private final JwtTokenProvider jwtTokenProvider;
     private final Map<String, Long> tokenToUserIdMap = new ConcurrentHashMap<>();
 
+    public TokenService(JwtTokenProvider jwtTokenProvider) {
+        this.jwtTokenProvider = jwtTokenProvider;
+    }
+
     /**
-     * Issues a new random UUID token for a user and stores it in memory.
+     * Issues a signed JWT token and stores the session mapping in memory.
      */
-    public String generateToken(Long userId) {
-        String token = UUID.randomUUID().toString();
+    public String generateToken(Long userId, String email, String role) {
+        String token = jwtTokenProvider.generateToken(userId, email, role);
         tokenToUserIdMap.put(token, userId);
         return token;
     }
 
     /**
-     * Retrieves the user ID associated with the provided session token.
-     * Returns null if the token does not exist or has been invalidated.
+     * Overload for backward compatibility.
+     */
+    public String generateToken(Long userId) {
+        return generateToken(userId, "user" + userId + "@bankease.com", "CUSTOMER");
+    }
+
+    /**
+     * Retrieves the user ID associated with the token.
      */
     public Long getUserIdByToken(String token) {
-        if (token == null) {
-            return null;
+        if (token == null) return null;
+
+        // Try extracting from JWT first
+        if (jwtTokenProvider.validateToken(token)) {
+            return jwtTokenProvider.getUserIdFromToken(token);
         }
+
+        // Fallback to in-memory store
         return tokenToUserIdMap.get(token);
     }
 
     /**
-     * Invalidates (logs out) an active session token.
+     * Invalidates an active token.
      */
     public void invalidateToken(String token) {
         if (token != null) {
@@ -55,10 +59,9 @@ public class TokenService {
     }
 
     /**
-     * Verifies if a given token is present in the active session store.
+     * Checks if token is valid.
      */
     public boolean isValid(String token) {
-        return token != null && tokenToUserIdMap.containsKey(token);
+        return token != null && (jwtTokenProvider.validateToken(token) || tokenToUserIdMap.containsKey(token));
     }
 }
-
