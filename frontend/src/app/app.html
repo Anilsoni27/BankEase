@@ -302,8 +302,8 @@
 
             <!-- OTP Input if high value -->
             @if (showOtpInput() || transferModel.amount >= 25000) {
-              <div class="form-group bonus-alert" style="background:#fef3c7; border-color:#fde047; color:#854d0e;">
-                <label class="form-label" style="color:#854d0e;">2FA Security OTP (Transfers ≥ ₹25,000)</label>
+              <div class="form-group bonus-alert" style="background:#FEF7ED; border-color:#F5D3A2; color:#9A5A0C;">
+                <label class="form-label" style="color:#9A5A0C;">2FA Security OTP (Transfers ≥ ₹25,000)</label>
                 <div style="display:flex; gap:0.5rem;">
                   <input 
                     type="text" 
@@ -317,7 +317,7 @@
                   </button>
                 </div>
                 @if (simulatedOtp()) {
-                  <small style="margin-top:0.35rem; display:block; font-weight:bold; color:var(--primary);">
+                  <small style="margin-top:0.35rem; display:block; font-weight:bold; color:#D5851F;">
                     ⚡ Simulated Demo OTP: {{ simulatedOtp() }} <span style="font-weight:normal; opacity:0.85;">(In production banking, dispatched via SMS/Email gateway)</span>
                   </small>
                 }
@@ -527,7 +527,7 @@
                         {{ b.status }}
                       </span>
                       @if (b.isScheduled) {
-                        <br><small style="color:#d97706;">Due: {{ b.scheduledDate }}</small>
+                        <br><small style="color:#D5851F; font-weight:600;">Due: {{ b.scheduledDate }}</small>
                       }
                     </td>
                   </tr>
@@ -552,12 +552,12 @@
             <span>🧮 Interactive EMI Calculator</span>
           </div>
 
-          <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem; text-align:center;">
-            <div style="font-size:0.8rem; color:#15803d; font-weight:700; text-transform:uppercase;">Estimated Monthly EMI</div>
-            <div style="font-size:2.2rem; font-weight:800; color:#15803d; letter-spacing:-1px;">
+          <div style="background:#FEF7ED; border:1px solid #F5D3A2; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem; text-align:center;">
+            <div style="font-size:0.8rem; color:#9A5A0C; font-weight:700; text-transform:uppercase;">Estimated Monthly EMI</div>
+            <div style="font-size:2.2rem; font-weight:800; color:#D5851F; letter-spacing:-1px;">
               ₹ {{ loanCalculator.emi | number:'1.2-2' }}
             </div>
-            <div style="font-size:0.75rem; color:#166534; display:flex; justify-content:space-around; margin-top:0.5rem;">
+            <div style="font-size:0.75rem; color:#9A5A0C; display:flex; justify-content:space-around; margin-top:0.5rem;">
               <span>Total Interest: <strong>₹ {{ loanCalculator.totalInterest | number:'1.2-2' }}</strong></span>
               <span>Total Payable: <strong>₹ {{ loanCalculator.totalPay | number:'1.2-2' }}</strong></span>
             </div>
@@ -657,7 +657,7 @@
                       <small>{{ l.purpose }}</small>
                     </td>
                     <td><strong>₹ {{ l.principalAmount | number:'1.2-2' }}</strong><br><small>{{ l.tenureMonths }} mos &#64; {{ l.annualInterestRate }}%</small></td>
-                    <td><strong style="color:#15803d;">₹ {{ l.monthlyEmi | number:'1.2-2' }}</strong></td>
+                    <td><strong style="color:#D5851F;">₹ {{ l.monthlyEmi | number:'1.2-2' }}</strong></td>
                     <td>
                       <span [class]="'status-badge ' + l.status.toLowerCase()">{{ l.status }}</span>
                       @if (l.adminRemarks) {
@@ -686,12 +686,12 @@
             <span>📈 Wealth Builder & FD Simulator</span>
           </div>
 
-          <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem; text-align:center;">
-            <div style="font-size:0.8rem; color:#0f766e; font-weight:700; text-transform:uppercase;">Estimated Maturity Return</div>
-            <div style="font-size:2.2rem; font-weight:800; color:#0f766e; letter-spacing:-1px;">
+          <div style="background:#F0F5EC; border:1px solid #C4DAB7; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem; text-align:center;">
+            <div style="font-size:0.8rem; color:#446330; font-weight:700; text-transform:uppercase;">Estimated Maturity Return</div>
+            <div style="font-size:2.2rem; font-weight:800; color:#446330; letter-spacing:-1px;">
               ₹ {{ fdCalculator.maturity | number:'1.2-2' }}
             </div>
-            <div style="font-size:0.75rem; color:#115e59; margin-top:0.35rem;">
+            <div style="font-size:0.75rem; color:#446330; margin-top:0.35rem;">
               Profit / Interest: <strong>₹ {{ fdCalculator.interest | number:'1.2-2' }}</strong> (Compounded Quarterly)
             </div>
           </div>
@@ -769,7 +769,7 @@
                     </td>
                     <td><span class="role-badge customer">{{ inv.investmentType }}</span></td>
                     <td><strong>₹ {{ inv.investedAmount | number:'1.2-2' }}</strong><br><small>{{ inv.interestOrReturnRate }}% p.a.</small></td>
-                    <td><strong style="color:#0f766e;">₹ {{ inv.maturityAmount | number:'1.2-2' }}</strong></td>
+                    <td><strong style="color:#446330;">₹ {{ inv.maturityAmount | number:'1.2-2' }}</strong></td>
                     <td>
                       <span [class]="'status-badge ' + inv.status.toLowerCase()">{{ inv.status }}</span>
                       @if (inv.status === 'ACTIVE') {
@@ -801,11 +801,11 @@
           </div>
 
           <!-- KYC Badge Card -->
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
+          <div style="background:#F9F6F3; border:1px solid #DACDC5; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700; color:#64748b;">KYC Verification Status</div>
-                <div style="font-size:1.2rem; font-weight:800; color:#1e3a8a;">
+                <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700; color:#7A543C;">KYC Verification Status</div>
+                <div style="font-size:1.2rem; font-weight:800; color:#5A3E2B;">
                   {{ kycDetails()?.kycStatus || 'VERIFIED' }}
                 </div>
               </div>
@@ -1015,14 +1015,14 @@
                   <td><strong>#{{ l.id }}</strong><br><small>{{ l.appliedAt | date:'short' }}</small></td>
                   <td><strong>{{ l.user?.fullName || 'Customer' }}</strong><br><small>{{ l.user?.email || 'N/A' }}</small></td>
                   <td><span class="role-badge customer">{{ l.loanType }}</span></td>
-                  <td><strong style="color:#15803d; font-size:1.05rem;">₹ {{ l.principalAmount | number:'1.2-2' }}</strong></td>
+                  <td><strong style="color:#446330; font-size:1.05rem;">₹ {{ l.principalAmount | number:'1.2-2' }}</strong></td>
                   <td>{{ l.tenureMonths }} mos &#64; {{ l.annualInterestRate }}%<br><small>EMI: ₹{{ l.monthlyEmi | number:'1.2-2' }}</small></td>
                   <td>{{ l.purpose }}</td>
                   <td><span [class]="'status-badge ' + l.status.toLowerCase()">{{ l.status }}</span></td>
                   <td>
                     @if (l.status === 'PENDING') {
                       <div style="display:flex; gap:0.35rem;">
-                        <button type="button" (click)="onApproveLoan(l)" class="btn btn-primary btn-sm" style="font-size:0.75rem; padding:0.25rem 0.5rem; background:#16a34a;">
+                        <button type="button" (click)="onApproveLoan(l)" class="btn btn-primary btn-sm" style="font-size:0.75rem; padding:0.25rem 0.5rem; background:#87A96B;">
                           Approve & Disburse
                         </button>
                         <button type="button" (click)="onRejectLoan(l)" class="btn btn-danger btn-sm" style="font-size:0.75rem; padding:0.25rem 0.5rem;">
