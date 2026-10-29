@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/transfers")
-@CrossOrigin(origins = "*")
 public class TransferController {
 
     private final TransferService transferService;

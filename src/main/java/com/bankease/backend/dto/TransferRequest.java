@@ -33,6 +33,14 @@ public class TransferRequest {
         this.description = description;
     }
 
+    public TransferRequest(String fromAccountNumber, String toAccountNumber, BigDecimal amount, String description, String otpCode) {
+        this.fromAccountNumber = fromAccountNumber;
+        this.toAccountNumber = toAccountNumber;
+        this.amount = amount;
+        this.description = description;
+        this.otpCode = otpCode;
+    }
+
     public String getOtpCode() {
         return otpCode;
     }

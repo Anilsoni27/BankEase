@@ -532,6 +532,16 @@ export class App implements OnInit {
     });
   }
 
+  onVerifyKyc(user: UserSummary, status: 'VERIFIED' | 'REJECTED'): void {
+    this.banking.adminVerifyKyc(user.id, status).subscribe({
+      next: () => {
+        this.showToast(`KYC status for ${user.fullName} updated to ${status}.`, 'success');
+        this.loadAdminData();
+      },
+      error: (err) => this.showToast(err.error?.message || 'Failed to update KYC status.', 'error')
+    });
+  }
+
   // --------------------------------------------------------------------------
   // Toast Helper
   // --------------------------------------------------------------------------

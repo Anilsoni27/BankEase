@@ -18,6 +18,10 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * ComplianceService manages 2FA OTP simulation, KYC verification workflows,
+ * document masking, daily limits, and account lockout management.
+ */
 @Service
 public class ComplianceService {
 
@@ -36,6 +40,8 @@ public class ComplianceService {
 
     /**
      * Generates a 6-digit OTP for 2-factor authentication / high value transfer authorization.
+     * In a production environment, this OTP is dispatched via an SMS/Email gateway.
+     * It is returned in the API payload strictly as a simulation for academic demonstration.
      */
     @Transactional
     public Map<String, Object> generateOtp(String userEmail, String purpose) {
@@ -48,7 +54,8 @@ public class ComplianceService {
         auditLogService.log(userEmail, "OTP_GENERATED", "OTP generated for purpose: " + purpose);
 
         Map<String, Object> result = new HashMap<>();
-        result.put("message", "OTP sent successfully (Simulated for Demo). Valid for 5 minutes.");
+        result.put("message", "OTP sent successfully. Valid for 5 minutes.");
+        result.put("notice", "SIMULATED OTP: In production banking, this OTP is dispatched via SMS/Email gateway. Displayed here for academic viva/demo.");
         result.put("otpCode", otpCode); // Returned for college demo & testing convenience!
         result.put("purpose", purpose);
         result.put("expiresAt", expiresAt);
@@ -56,10 +63,14 @@ public class ComplianceService {
     }
 
     /**
-     * Verifies the submitted OTP code.
+     * Verifies the submitted OTP code against active tokens in the database.
      */
     @Transactional
     public boolean verifyOtp(String userEmail, String otpCode, String purpose) {
+        if (otpCode == null || otpCode.trim().isEmpty()) {
+            throw new BankeaseException("OTP code cannot be blank.");
+        }
+
         OtpVerification otp = otpVerificationRepository
                 .findTopByUserEmailAndPurposeAndIsUsedFalseOrderByCreatedAtDesc(userEmail, purpose)
                 .orElseThrow(() -> new BankeaseException("No active OTP found. Please request a new one."));
@@ -80,13 +91,56 @@ public class ComplianceService {
     }
 
     /**
-     * Updates KYC status for a user.
+     * Helper to mask sensitive government documents (e.g. Aadhaar / PAN)
+     * e.g. 1234-5678-9012 becomes XXXX-XXXX-9012.
+     */
+    public String maskDocumentNumber(String documentNumber) {
+        if (documentNumber == null || documentNumber.trim().isEmpty()) {
+            return "XXXX-XXXX-XXXX";
+        }
+        String clean = documentNumber.replaceAll("[\\s-]", "");
+        if (clean.length() <= 4) {
+            return "XXXX" + clean;
+        }
+        String last4 = clean.substring(clean.length() - 4);
+        return "XXXX-XXXX-" + last4;
+    }
+
+    /**
+     * Submits customer KYC document for compliance review (sets status to PENDING).
+     * Document number is masked before audit logging.
+     */
+    @Transactional
+    public User submitKyc(User user, String documentType, String documentNumber) {
+        String masked = maskDocumentNumber(documentNumber);
+        user.setKycStatus(KycStatus.PENDING);
+        User saved = userRepository.save(user);
+        auditLogService.log(user.getEmail(), "KYC_SUBMITTED", "KYC documents submitted (" + documentType + ": " + masked + "). Awaiting admin verification.");
+        return saved;
+    }
+
+    /**
+     * Backward-compatible alias for updateKyc.
      */
     @Transactional
     public User updateKyc(User user, String documentType, String documentNumber) {
-        user.setKycStatus(KycStatus.VERIFIED);
+        return submitKyc(user, documentType, documentNumber);
+    }
+
+    /**
+     * Admin workflow to formally approve (VERIFIED) or reject (REJECTED) customer KYC.
+     */
+    @Transactional
+    public User verifyKycStatus(Long userId, KycStatus status, User adminUser) {
+        if (adminUser.getRole() != Role.ADMIN) {
+            throw new UnauthorizedException("Only Administrators can verify KYC status.");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User " + userId + " not found"));
+
+        user.setKycStatus(status);
         User saved = userRepository.save(user);
-        auditLogService.log(user.getEmail(), "KYC_VERIFIED", "KYC verified using " + documentType + ": " + documentNumber);
+        auditLogService.log(adminUser.getEmail(), "KYC_" + status.name(), "Admin updated KYC status to " + status + " for user: " + user.getEmail());
         return saved;
     }
 
@@ -95,7 +149,7 @@ public class ComplianceService {
      */
     @Transactional
     public User updateDailyLimit(User user, BigDecimal newLimit) {
-        if (newLimit.compareTo(BigDecimal.ZERO) <= 0) {
+        if (newLimit == null || newLimit.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BankeaseException("Daily limit must be greater than zero.");
         }
         user.setDailyLimit(newLimit);

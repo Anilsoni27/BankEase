@@ -12,3 +12,4 @@ public interface InvestmentRepository extends JpaRepository<Investment, Long> {
     List<Investment> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<Investment> findByStatus(InvestmentStatus status);
 }
+

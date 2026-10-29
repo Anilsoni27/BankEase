@@ -66,7 +66,7 @@ public class AuthService {
                 encodedPassword,
                 Role.CUSTOMER
         );
-        user.setKycStatus(KycStatus.VERIFIED);
+        user.setKycStatus(KycStatus.PENDING);
         User savedUser = userRepository.save(user);
 
         // Open default SAVINGS account with initial balance of 10000

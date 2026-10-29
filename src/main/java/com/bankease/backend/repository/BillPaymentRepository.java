@@ -12,3 +12,4 @@ public interface BillPaymentRepository extends JpaRepository<BillPayment, Long> 
     List<BillPayment> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<BillPayment> findByStatus(BillStatus status);
 }
+

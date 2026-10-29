@@ -15,7 +15,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/investments")
-@CrossOrigin(origins = "*")
 public class InvestmentController {
 
     private final InvestmentService investmentService;
@@ -75,3 +74,4 @@ public class InvestmentController {
         return ResponseEntity.ok(ApiResponse.success("Investment closed and funds credited to your account.", inv));
     }
 }
+

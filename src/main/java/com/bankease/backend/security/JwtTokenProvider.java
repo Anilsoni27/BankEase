@@ -2,6 +2,7 @@ package com.bankease.backend.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -11,22 +12,27 @@ import java.util.Date;
 /**
  * JwtTokenProvider generates, signs, and parses JSON Web Tokens (JWT)
  * using HMAC-SHA256 for secure, stateless authentication.
+ * The secret key and expiration period are externalized to application properties / env variables.
  */
 @Component
 public class JwtTokenProvider {
 
-    // 256-bit secret key for HMAC-SHA256 signing
-    private static final String JWT_SECRET = "BankEaseSecureNextGenNetBankingSecretKey2026!@#$%^&*()_+";
-    private static final long JWT_EXPIRATION_MS = 86400000L; // 24 hours
+    private final SecretKey key;
+    private final long jwtExpirationMs;
 
-    private final SecretKey key = Keys.hmacShaKeyFor(JWT_SECRET.getBytes(StandardCharsets.UTF_8));
+    public JwtTokenProvider(
+            @Value("${bankease.jwt.secret:BankEaseSecureNextGenNetBankingSecretKey2026!@#$%^&*()_+}") String secret,
+            @Value("${bankease.jwt.expiration-ms:86400000}") long jwtExpirationMs) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.jwtExpirationMs = jwtExpirationMs;
+    }
 
     /**
      * Generates a signed JWT containing user claims.
      */
     public String generateToken(Long userId, String email, String role) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + JWT_EXPIRATION_MS);
+        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
         return Jwts.builder()
                 .subject(email)

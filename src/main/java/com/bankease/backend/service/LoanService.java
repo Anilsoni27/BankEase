@@ -32,24 +32,42 @@ public class LoanService {
     }
 
     /**
-     * Calculates monthly Equated Monthly Installment (EMI).
+     * Calculates monthly Equated Monthly Installment (EMI) using high-precision BigDecimal arithmetic.
      * Formula: E = [P x r x (1+r)^n] / [(1+r)^n - 1]
+     * where:
+     * P = principal loan amount
+     * r = monthly interest rate (annual rate / 12 / 100)
+     * n = tenure in months
      */
     public BigDecimal calculateEmi(BigDecimal principal, BigDecimal annualInterestRate, int tenureMonths) {
         if (principal == null || annualInterestRate == null || tenureMonths <= 0) {
-            return BigDecimal.ZERO;
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
 
-        double p = principal.doubleValue();
-        double r = (annualInterestRate.doubleValue() / 12.0) / 100.0;
-        int n = tenureMonths;
-
-        if (r == 0) {
-            return principal.divide(BigDecimal.valueOf(n), 2, RoundingMode.HALF_UP);
+        if (annualInterestRate.compareTo(BigDecimal.ZERO) == 0) {
+            return principal.divide(BigDecimal.valueOf(tenureMonths), 2, RoundingMode.HALF_UP);
         }
 
-        double emi = (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-        return BigDecimal.valueOf(emi).setScale(2, RoundingMode.HALF_UP);
+        // High precision math context with 16 significant digits to eliminate floating point rounding errors
+        java.math.MathContext mc = new java.math.MathContext(16, RoundingMode.HALF_UP);
+
+        // Monthly interest rate: r = annualInterestRate / 1200
+        BigDecimal monthlyRate = annualInterestRate.divide(BigDecimal.valueOf(1200), mc);
+
+        // (1 + r)
+        BigDecimal onePlusR = BigDecimal.ONE.add(monthlyRate, mc);
+
+        // (1 + r)^n using BigDecimal pow
+        BigDecimal onePlusRPowN = onePlusR.pow(tenureMonths, mc);
+
+        // Numerator = P * r * (1 + r)^n
+        BigDecimal numerator = principal.multiply(monthlyRate, mc).multiply(onePlusRPowN, mc);
+
+        // Denominator = (1 + r)^n - 1
+        BigDecimal denominator = onePlusRPowN.subtract(BigDecimal.ONE, mc);
+
+        // Round final EMI to 2 decimal places with HALF_UP rounding
+        return numerator.divide(denominator, 2, RoundingMode.HALF_UP);
     }
 
     @Transactional
@@ -141,3 +159,4 @@ public class LoanService {
         return saved;
     }
 }
+

@@ -17,7 +17,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bills")
-@CrossOrigin(origins = "*")
 public class BillPayController {
 
     private final BillPaymentService billPaymentService;
@@ -85,3 +84,4 @@ public class BillPayController {
         return ResponseEntity.ok(ApiResponse.success("Payment history retrieved", billPaymentService.getPaymentHistory(user)));
     }
 }
+

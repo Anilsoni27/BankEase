@@ -98,13 +98,26 @@ Open your MySQL CLI or MySQL Workbench and run:
 CREATE DATABASE IF NOT EXISTS bankease_db;
 ```
 
-### Step 2: Configure Password
-Open `src/main/resources/application.properties` and update your MySQL root password:
-```properties
-spring.datasource.password=YOUR_ACTUAL_PASSWORD
+### Step 2: Configure Password & Environment Variables
+For security, credentials are not hardcoded. You can either set the `DB_PASSWORD` environment variable or fill in the placeholder in `src/main/resources/application.properties`:
+
+**Option 1: Using Environment Variables (Recommended):**
+```powershell
+$env:DB_PASSWORD="YOUR_ACTUAL_PASSWORD"
 ```
 
-### Step 3: Run the Application
+**Option 2: In `application.properties`:**
+```properties
+spring.datasource.password=${DB_PASSWORD:YOUR_ACTUAL_PASSWORD}
+```
+
+### Step 3: Run Automated Test Suite
+Run the 28 automated unit and integration tests (uses fast in-memory H2 database, zero external dependencies required):
+```powershell
+.\mvnw.cmd test
+```
+
+### Step 4: Run the Application
 You can run the application directly using the included Maven Wrapper:
 
 **On Windows (PowerShell / Command Prompt):**
@@ -406,13 +419,32 @@ All endpoints return uniform JSON responses wrapped in `ApiResponse<T>` or `Erro
 
 ## 🌟 6. Enterprise Features & Viva Highlights
 
-During your evaluation or project viva with faculty and HCL collaborators, you can highlight how BankEase goes beyond a typical student project:
-1. **Stateless JWT Security Architecture:** Modern stateless authentication using Spring Security 6 `SecurityFilterChain` with custom `JwtAuthenticationFilter` verifying HMAC-SHA256 tokens on every protected request.
-2. **Three-Strike Brute Force Protection:** Automatic account lockout triggered upon 3 consecutive failed login attempts, recorded in audit logs with administrative unlock capability.
-3. **High-Value 2FA Step-Up Authentication:** Transactions exceeding ₹25,000 strictly enforce simulated 6-digit one-time password (OTP) verification before debit execution.
-4. **Loan Lifecycle & Disbursement:** Integrated financial math for EMI computation and an end-to-end admin approval workflow that automatically credits loan amounts to the borrower's account via atomic database transactions.
-5. **Wealth Management & Compound Interest:** Accurate quarterly compounding Fixed Deposit simulator ($A = P(1 + r/4)^{4t}$) and portfolio tracking.
-6. **Immutable Security Audit Trail:** Every sensitive action (logins, lockouts, limit changes, loans, transfers) is committed to an append-only audit log table with client IP tracking.
+During your evaluation or project viva with faculty and HCL collaborators, you can highlight how BankEase meets enterprise production standards:
+1. **Spring Security 6 with Role-Based Access Control (RBAC):**
+   - Strictly enforces `.anyRequest().authenticated()` for all API operations.
+   - Restricts `/api/admin/**` endpoints strictly to `hasRole("ADMIN")`.
+   - Custom `AuthenticationEntryPoint` (401) and `AccessDeniedHandler` (403) return uniform JSON error responses.
+2. **Stateless JWT Security Architecture:**
+   - 256-bit HMAC-SHA256 tokens externalized to `bankease.jwt.secret` (supports production `JWT_SECRET` environment variable).
+   - Validated on every request via `JwtAuthenticationFilter`.
+3. **Simulated 2FA OTP & Spoofing Protection:**
+   - High-value transfers ($\ge$ ₹25,000) require a 6-digit time-sensitive (5 min) OTP.
+   - Both `/send-otp` and `/verify-otp` endpoints strictly authenticate and bind to the caller's session token, preventing third-party email spoofing.
+   - *Viva Note:* In production banking, the OTP is dispatched via an SMS/Email gateway (e.g. Twilio/SendGrid). In this project, the code is fully simulated and returned in payload for academic viva demonstration.
+4. **KYC Lifecycle & Document Masking (PII Protection):**
+   - New user registrations default to `PENDING` KYC status.
+   - When customers submit Aadhaar or PAN details, the service masks the document number (`XXXX-XXXX-1234`) before writing to audit logs to ensure compliance with privacy laws.
+   - Administrators review and formally approve (`VERIFIED`) or reject (`REJECTED`) KYC from the Admin Dashboard.
+5. **High-Precision BigDecimal Financial Math:**
+   - Loan EMI calculations use `BigDecimal` with 16-digit `MathContext` and `BigDecimal.pow(tenureMonths, mc)`:
+     $$E = \frac{P \cdot r \cdot (1+r)^n}{(1+r)^n - 1}$$
+   - Completely eliminates IEEE 754 floating-point inaccuracies typical of `double` calculations.
+6. **Production CORS Configuration:**
+   - Centrally configured via `bankease.cors.allowed-origins` (e.g. `http://localhost:4200`, `http://localhost:8080`), replacing permissive `*` wildcards.
+7. **Three-Strike Brute Force Protection:**
+   - Automatic account lockout triggered upon 3 consecutive failed login attempts, recorded in audit logs with administrative unlock capability.
+8. **Automated Test Coverage:**
+   - 28 unit and integration tests covering JWT verification, BigDecimal EMI calculations, OTP expiration, account lockouts, KYC masking, and transfer transactional atomicity.
 
 ---
 Developed as a solo academic project in collaboration with **HCL**.

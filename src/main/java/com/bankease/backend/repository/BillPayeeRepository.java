@@ -12,3 +12,4 @@ public interface BillPayeeRepository extends JpaRepository<BillPayee, Long> {
     List<BillPayee> findByUserId(Long userId);
     List<BillPayee> findByUserIdAndCategory(Long userId, BillCategory category);
 }
+

@@ -18,7 +18,8 @@ import java.util.Collections;
 
 /**
  * JwtAuthenticationFilter intercepts incoming HTTP requests, validates
- * the JWT token from the Authorization header, and sets up Spring Security context.
+ * the JWT token from the Authorization header, and sets up Spring Security context
+ * with granted authorities (e.g. ROLE_ADMIN, ROLE_CUSTOMER).
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -37,8 +38,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String authHeader = request.getHeader("Authorization");
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7).trim();
+        if (authHeader != null && !authHeader.trim().isEmpty()) {
+            String token = authHeader.trim();
+            if (token.startsWith("Bearer ") || token.startsWith("bearer ")) {
+                token = token.substring(7).trim();
+            }
 
             if (jwtTokenProvider.validateToken(token)) {
                 String email = jwtTokenProvider.getEmailFromToken(token);
@@ -46,7 +50,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 User user = userRepository.findByEmail(email).orElse(null);
                 if (user != null && !user.isAccountLocked()) {
-                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
+                    String authorityName = (role != null && role.startsWith("ROLE_")) ? role : "ROLE_" + (role != null ? role.toUpperCase() : "CUSTOMER");
+                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority(authorityName);
+
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             user,
                             null,

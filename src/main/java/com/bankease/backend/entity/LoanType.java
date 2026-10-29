@@ -6,3 +6,4 @@ public enum LoanType {
     EDUCATION,
     VEHICLE
 }
+

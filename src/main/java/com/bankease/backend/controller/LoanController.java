@@ -15,7 +15,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/loans")
-@CrossOrigin(origins = "*")
 public class LoanController {
 
     private final LoanService loanService;
@@ -98,3 +97,4 @@ public class LoanController {
         return ResponseEntity.ok(ApiResponse.success("Loan rejected.", loan));
     }
 }
+

@@ -134,6 +134,10 @@ export class BankingService {
     return this.http.post<ApiResponse<any>>(`${this.baseUrl}/compliance/unlock-user/${userId}`, {});
   }
 
+  adminVerifyKyc(userId: number, status: string): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/compliance/admin/verify-kyc/${userId}`, { status });
+  }
+
   // 7. Admin Queries
   getAdminUsers(): Observable<ApiResponse<UserSummary[]>> {
     return this.http.get<ApiResponse<UserSummary[]>>(`${this.baseUrl}/admin/users`);

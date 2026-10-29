@@ -6,3 +6,4 @@ public enum BillStatus {
     SCHEDULED,
     CANCELLED
 }
+

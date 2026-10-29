@@ -5,3 +5,4 @@ public enum InvestmentType {
     RECURRING_DEPOSIT,
     MUTUAL_FUND
 }
+

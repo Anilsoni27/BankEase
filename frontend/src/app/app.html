@@ -317,8 +317,8 @@
                   </button>
                 </div>
                 @if (simulatedOtp()) {
-                  <small style="margin-top:0.35rem; display:block; font-weight:bold;">
-                    ⚡ Simulated OTP: {{ simulatedOtp() }}
+                  <small style="margin-top:0.35rem; display:block; font-weight:bold; color:var(--primary);">
+                    ⚡ Simulated Demo OTP: {{ simulatedOtp() }} <span style="font-weight:normal; opacity:0.85;">(In production banking, dispatched via SMS/Email gateway)</span>
                   </small>
                 }
               </div>
@@ -916,7 +916,24 @@
                   <td><strong>{{ u.fullName }}</strong></td>
                   <td>{{ u.email }}</td>
                   <td><span [class]="'role-badge ' + u.role.toLowerCase()">{{ u.role }}</span></td>
-                  <td><span class="status-badge success">{{ u.kycStatus || 'VERIFIED' }}</span></td>
+                  <td>
+                    @if (u.kycStatus === 'VERIFIED') {
+                      <span class="status-badge success">VERIFIED</span>
+                    } @else if (u.kycStatus === 'REJECTED') {
+                      <span class="status-badge failed">REJECTED</span>
+                      <button type="button" (click)="onVerifyKyc(u, 'VERIFIED')" class="btn btn-secondary btn-sm" style="margin-left:0.4rem; font-size:0.68rem; padding:0.15rem 0.35rem;">
+                        Approve
+                      </button>
+                    } @else {
+                      <span class="status-badge pending">PENDING</span>
+                      <button type="button" (click)="onVerifyKyc(u, 'VERIFIED')" class="btn btn-primary btn-sm" style="margin-left:0.4rem; font-size:0.68rem; padding:0.15rem 0.35rem;">
+                        Approve
+                      </button>
+                      <button type="button" (click)="onVerifyKyc(u, 'REJECTED')" class="btn btn-secondary btn-sm" style="margin-left:0.2rem; font-size:0.68rem; padding:0.15rem 0.35rem;">
+                        Reject
+                      </button>
+                    }
+                  </td>
                   <td>
                     @if (u.accountLocked) {
                       <span class="status-badge failed">LOCKED</span>

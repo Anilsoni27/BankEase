@@ -38,3 +38,4 @@ public class AuditLogService {
         return auditLogRepository.findAllByOrderByTimestampDesc();
     }
 }
+
