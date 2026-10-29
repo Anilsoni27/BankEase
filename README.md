@@ -1,7 +1,7 @@
 # BankEase: NextGen Net Banking 🏦
 
 > **College Solo Project** (Collaborated with **HCL**)  
-> **Tech Stack:** Java 25, Spring Boot 4.1.2, Spring Data JPA, MySQL 8+, Jakarta Validation, BCrypt, HTML5 / CSS3 / Vanilla JavaScript.
+> **Tech Stack:** Angular, TypeScript, Java 25, Spring Boot 4.1.2, Spring Data JPA, MySQL 8+, Jakarta Validation, BCrypt.
 
 ---
 
@@ -16,7 +16,7 @@
 - **Lightweight Token Authentication:** Session tokens generated via random UUID stored in memory; sent via `Authorization: Bearer <token>` (no bulky Spring Security starter).
 - **BCrypt Security:** Passwords hashed with salted BCrypt via `spring-security-crypto`.
 - **Automatic Account Opening:** New registrations immediately get a `SAVINGS` account pre-credited with ₹10,000 demo funds.
-- **Single-Page UI:** Clean, modern, responsive frontend (built with vanilla HTML/CSS/JS, zero frameworks) bundled right in `src/main/resources/static`.
+- **Angular Single-Page App (SPA):** Modern Angular frontend (`frontend/`) featuring standalone components, Angular Signals, functional HTTP Bearer token interceptor, and responsive UI. The production build is integrated directly into Spring Boot (`src/main/resources/static/`).
 - **Automatic Data Seeding:** Ready-to-demo data created on first boot (`admin`, `rahul`, `priya`).
 
 ---
