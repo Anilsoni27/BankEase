@@ -1,478 +1,182 @@
-# BankEase: NextGen Net Banking 🏦
+# BankEase — NextGen Digital Banking Suite 🏦
 
-> **College Solo Project** (Collaborated with **HCL**)  
-> **Tech Stack:** Angular, TypeScript, Java 25, Spring Boot 4.1.2, Spring Data JPA, MySQL 8+, Jakarta Validation, BCrypt.
-
----
-
-## 📖 1. Project Overview
-
-**BankEase** is a modern, responsive, and robust Net Banking Minimum Viable Product (MVP) engineered to simulate real-world core banking operations. It implements strict layered architecture, transactional integrity for fund transfers, cryptographic password hashing, audit trails, and role-based access for Customers and Administrators.
-
-### Key Highlights
-- **Layered Architecture:** Controller $\rightarrow$ Service $\rightarrow$ Repository $\rightarrow$ Database.
-- **Enterprise Security (JWT + Spring Security):** HMAC-SHA256 signed JSON Web Tokens, `JwtAuthenticationFilter`, `SecurityFilterChain`, and salted BCrypt encryption.
-- **Transactional Fund Transfers:** Guaranteed ACID compliance with `@Transactional`, daily limit compliance, and high-value 2FA OTP verification.
-- **Bill Pay & Utilities:** Registered payees, instant payments (Electricity, Water, Broadband, Mobile), and scheduled auto-pay.
-- **Loan Module & EMI Calculator:** Real-time EMI mathematical engine ($E = \frac{P \cdot r \cdot (1+r)^n}{(1+r)^n - 1}$), customer loan applications, and Administrator approval/disbursement workflow.
-- **Wealth & Investments:** Fixed Deposit (FD) compound interest simulator, Recurring Deposits (RD), and Mutual Funds portfolio management.
-- **Compliance & Risk Controls:** 3-strike account lockout defense, daily transfer limit enforcement, KYC status verification, and real-time security audit trails.
-- **Angular Single-Page App (SPA):** Modern Angular frontend (`frontend/`) featuring standalone components, Angular Signals, functional HTTP Bearer token interceptor, and responsive UI. The production build is integrated directly into Spring Boot (`src/main/resources/static/`).
-- **Automatic Data Seeding:** Ready-to-demo data created on first boot (`admin`, `rahul`, `priya`).
+A modern, secure, and full-stack enterprise digital core banking platform engineered with **Spring Boot 4**, **Java 25**, **Angular 22**, and **MySQL 8+**.
 
 ---
 
-## 🏛️ 2. Architectural Design
+## 📌 1. Platform Overview
+
+**BankEase** provides an end-to-end digital banking experience designed around real-world financial workflows, strict transactional consistency, regulatory risk controls, and modern security architecture.
+
+### Core Modules & Capabilities
+
+- **Account Management:** Multi-tier accounts (Savings and Current) with real-time balance tracking and comprehensive statement generation.
+- **Transactional Fund Transfers:** ACID-guaranteed fund transfers with `@Transactional` atomicity, daily limits enforcement, and isolated audit logging via `Propagation.REQUIRES_NEW`.
+- **Enterprise Security:** Spring Security 6 and stateless HMAC-SHA256 JWT authentication, salted BCrypt password hashing, and brute-force protection with automatic 3-strike account lockout.
+- **Compliance & Risk Control:** Customer KYC tier verification, PII document number masking (`XXXX-XXXX-1234`), 2FA OTP verification for high-value transactions ($\ge$ ₹25,000), and automated startup data repair for legacy compliance records.
+- **Bill Pay & Utilities:** Instant bill settlement (Electricity, Water, Broadband, Mobile) with payee registry and scheduled automated payments.
+- **Loan & EMI Calculator:** Real-time EMI mathematical engine based on exact amortization formulas ($E = \frac{P \cdot r \cdot (1+r)^n}{(1+r)^n - 1}$) using 16-digit precision `BigDecimal`, coupled with administrative approval and automated disbursement.
+- **Wealth & Investments:** Compound interest simulation engine for Fixed Deposits (FD), Recurring Deposits (RD), and Mutual Funds with premature redemption capabilities.
+- **Modern Angular Frontend:** Standalone component architecture, Angular Signals, reactive forms, functional HTTP Bearer interceptors, and a refined Earth-tone palette (Walnut Brown, Sage Green, and Amber Glow).
+
+---
+
+## 🏛️ 2. System Architecture
 
 ```mermaid
 flowchart TD
     Client["Client (Browser / REST API)"]
-    Controller["Controller Layer (@RestController)\n- AuthController\n- AccountController\n- TransferController\n- TransactionController\n- AdminController"]
-    Security["Token & Auth Layer\n- TokenService (ConcurrentHashMap)\n- AuthHelper (Header validation)\n- BCryptPasswordEncoder"]
-    Service["Service Layer (@Service)\n- AuthService\n- AccountService\n- TransferService (@Transactional)\n- TransactionRecordService (REQUIRES_NEW)\n- TransactionService\n- AdminService"]
-    Repo["Repository Layer (@Repository)\n- UserRepository\n- AccountRepository\n- TransactionRepository"]
+    Controller["Controller Layer (@RestController)\n- AuthController\n- AccountController\n- TransferController\n- TransactionController\n- BillPayController\n- LoanController\n- InvestmentController\n- ComplianceController\n- AdminController"]
+    Security["Security & Filter Layer\n- JwtAuthenticationFilter\n- SecurityFilterChain (RBAC)\n- BCryptPasswordEncoder"]
+    Service["Service Layer (@Service)\n- AuthService\n- AccountService\n- TransferService (@Transactional)\n- TransactionRecordService (REQUIRES_NEW)\n- LoanService & InvestmentService\n- ComplianceService & AuditLogService\n- AdminService"]
+    Repo["Repository Layer (@Repository)\n- Spring Data JPA Interfaces"]
     DB[(MySQL Database\nbankease_db)]
 
     Client -->|HTTP / JSON| Controller
     Controller --> Security
     Controller --> Service
     Service --> Repo
-    Repo -->|JPA / Hibernate / JDBC| DB
+    Repo -->|Hibernate / JDBC| DB
 ```
 
-### Explaining the `@Transactional` Transfer Logic
-In banking, moving money between accounts consists of two distinct database mutations:
-1. **Debit:** Deduct ₹ $X$ from Account A.
-2. **Credit:** Add ₹ $X$ to Account B.
+### Transactional Atomicity & Attempt Logging
 
-If a server failure, database crash, or network timeout occurs after Step 1 but before Step 2, money would disappear from the system. 
-
-#### How `@Transactional` Prevents This:
-- **Atomicity:** Spring wraps both database operations in a single database transaction. Either both the debit and the credit succeed and commit together, or if an unexpected error occurs, the entire operation is rolled back and no balances change.
-- **Consistency:** Total money invariant in the system is preserved ($Balance_{sender} + Balance_{receiver} = Constant$).
-- **Isolation:** Other transactions cannot view partial debit states.
-- **Durability:** Once committed, balance updates persist permanently in MySQL.
-
-#### Recording Failed Transfer Attempts (`Propagation.REQUIRES_NEW`)
-The project requirement specifies: *"Save a Transaction record for every attempt."*
-
-If validation fails (such as **Insufficient Balance** or **Destination Account Does Not Exist**), throwing an exception inside a standard `@Transactional` method would roll back everything, including the attempt record.
-
-To solve this cleanly, BankEase uses **`TransactionRecordService`** with `@Transactional(propagation = Propagation.REQUIRES_NEW)`:
-```java
-@Transactional(propagation = Propagation.REQUIRES_NEW)
-public Transaction record(Account fromAccount, Account toAccount,
-                          BigDecimal amount, TransactionType type,
-                          TransactionStatus status, String description) {
-    Transaction tx = new Transaction(fromAccount, toAccount, amount, type, status, description);
-    return transactionRepository.save(tx);
-}
-```
-`REQUIRES_NEW` suspends any active transaction and starts a **brand-new database connection & transaction** specifically for the audit record. Even when the transfer is subsequently rejected or an exception is thrown, the `FAILED` transaction record is safely committed in MySQL for compliance!
+1. **Atomic Transfers:** Balances are transferred within an atomic transaction. A failure during either the debit or credit phase triggers a complete rollback to guarantee system balance invariants.
+2. **Independent Audit Trails:** Transaction attempts (both `SUCCESS` and `FAILED`) are captured using `Propagation.REQUIRES_NEW` via `TransactionRecordService`. Even when transfers are rejected due to insufficient funds or exceeded daily limits, the compliance record is permanently preserved in MySQL.
 
 ---
 
-## 🔑 3. Pre-Seeded Accounts (CommandLineRunner)
+## 🛠️ 3. Technology Stack
 
-When you first launch BankEase with `SEED_ENABLED=true`, the `DataSeeder` automatically generates three testing accounts:
-
-| User | Email | Password | Role | Account Number | Opening Balance | KYC Status |
-|---|---|---|---|---|---|---|
-| **System Admin** | `admin@bankease.com` | `admin123` | `ADMIN` | `1009999999` | ₹ 50,000.00 | `VERIFIED` |
-| **Rahul Sharma** | `rahul@bankease.com` | `rahul123` | `CUSTOMER` | `1001001001` | ₹ 10,000.00 | `PENDING` |
-| **Priya Patel** | `priya@bankease.com` | `priya123` | `CUSTOMER` | `1002002002` | ₹ 10,000.00 | `PENDING` |
-
-*(The web interface features 1-click quick autofill buttons for these credentials).*
-
-> [!WARNING]
-> **Production Security Notice:** Demo credentials (`admin123`, `rahul123`, `priya123`) sirf academic demo aur viva testing ke liye hain. Production environment mein `SEED_ENABLED=false` rakhein aur admin password turant change karein.
+| Layer | Technology | Details |
+| :--- | :--- | :--- |
+| **Backend Framework** | Spring Boot 4.1.2 | Spring Web MVC, Spring Data JPA, Spring Security 6, Jakarta Validation |
+| **Language** | Java 25 | Modern LTS features, Records, Pattern Matching, Strict Type Safety |
+| **Database** | MySQL 8+ | InnoDb engine with foreign key constraints, indexing, and ACID compliance |
+| **Authentication** | JWT (jjwt 0.12.6) | 256-bit HMAC-SHA256 stateless session tokens |
+| **Cryptography** | BCrypt | Salted password hashing via `spring-security-crypto` |
+| **Frontend Framework**| Angular 22 | Standalone Components, Angular Signals, TypeScript, Modern CSS Grid |
+| **Build Tools** | Maven & npm | Maven Wrapper (`./mvnw`) and Angular CLI |
 
 ---
 
-## 🚀 4. How to Run the Project
+## 🚀 4. Getting Started
 
 ### Prerequisites
-1. **Java 25** (installed and configured).
-2. **MySQL Server 8+** running on `localhost:3306`.
 
-### Step 1: Create Database in MySQL
-Open your MySQL CLI or MySQL Workbench and run:
+1. **Java 25 SDK** installed and configured (`JAVA_HOME`).
+2. **MySQL Server 8+** running on `localhost:3306`.
+3. **Node.js (v20+) & npm** (optional, for standalone frontend development).
+
+### Step 1: Initialize Database
+
+Create the target database in MySQL:
+
 ```sql
 CREATE DATABASE IF NOT EXISTS bankease_db;
 ```
 
-### Step 2: Configure Environment Variables & Secrets
-BankEase follows strict zero-trust security. Secrets are never hardcoded in source control.
+### Step 2: Configure Environment Variables
 
-#### 1. Generate a Cryptographically Secure 256-bit JWT Secret:
-- **On Windows (PowerShell):**
-  ```powershell
-  [Convert]::ToBase64String((1..48 | % { Get-Random -Maximum 256 }))
-  ```
-- **On Linux / macOS:**
-  ```bash
-  openssl rand -base64 48
-  ```
+BankEase enforces zero-trust security. Secrets and credentials are externalized and configured through environment variables:
 
-#### 2. Set the Environment Variables:
-**On Windows (PowerShell):**
+#### On Windows (PowerShell):
 ```powershell
-$env:JWT_SECRET="YOUR_GENERATED_32_CHAR_OR_LONGER_SECRET_KEY"
-$env:DB_PASSWORD="YOUR_ACTUAL_MYSQL_ROOT_PASSWORD"
+# 1. Cryptographically secure 256-bit secret key for signing JWTs (minimum 32 characters)
+$env:JWT_SECRET="YourSecureSecretKeyMinimum32CharactersLengthRequired123!"
 
-# Optional settings for college viva demo:
-$env:OTP_DEMO_MODE="true"    # Set to true for viva demo to expose OTP in API payload & UI
-$env:SEED_ENABLED="true"     # Set to false in production to disable pre-seeded demo accounts
+# 2. MySQL root database password
+$env:DB_PASSWORD="YourMySQLPassword"
+
+# 3. Optional Settings
+$env:OTP_DEMO_MODE="false"   # Set to "true" to expose OTP in API payload for test environments
+$env:SEED_ENABLED="true"     # Set to "false" in production environments
 ```
 
-**On Linux / macOS (Bash / Zsh):**
+#### On Linux / macOS (Bash / Zsh):
 ```bash
-export JWT_SECRET="YOUR_GENERATED_32_CHAR_OR_LONGER_SECRET_KEY"
-export DB_PASSWORD="YOUR_ACTUAL_MYSQL_ROOT_PASSWORD"
-export OTP_DEMO_MODE="true"
+export JWT_SECRET="YourSecureSecretKeyMinimum32CharactersLengthRequired123!"
+export DB_PASSWORD="YourMySQLPassword"
+export OTP_DEMO_MODE="false"
 export SEED_ENABLED="true"
 ```
 
-> [!NOTE]
-> **Viva Demo Mode (`OTP_DEMO_MODE`):**
-> - When `OTP_DEMO_MODE=true`: The generated 6-digit OTP is returned in the API payload and displayed on screen in a simulated demo badge for easy viva presentation.
-> - When `OTP_DEMO_MODE=false` (Production Default): The OTP is hidden from the API payload and only printed to the secure server console as `[SIMULATED SMS] OTP for <email>: 123456`, simulating an external SMS gateway delivery.
+### Step 3: Run the Test Suite
 
-### Step 3: Run Automated Test Suite
-Run the 28+ automated unit and integration tests (uses fast in-memory H2 database, zero external dependencies required):
+Execute the automated test suite (uses fast in-memory H2 database; does not require an active MySQL instance):
+
 ```powershell
 .\mvnw.cmd test
 ```
 
-### Step 4: Run the Application
-You can run the application directly using the included Maven Wrapper:
+### Step 4: Launch the Application
 
-**On Windows (PowerShell / Command Prompt):**
+Start the backend server using the Maven wrapper:
+
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-*(Note: The Maven Wrapper has been configured with an automatic fallback to Java 25).*
+Once started, the complete digital banking interface is served at:
+👉 **[http://localhost:8080/](http://localhost:8080/)**
 
-Or build and run the packaged JAR:
-```powershell
-.\mvnw.cmd clean package
-java -jar target/bankease-backend-0.0.1-SNAPSHOT.jar
-```
-
-### Step 5: Access the Frontend
-
-You have two convenient ways to access the Angular application:
-
-#### Option A: Directly from Spring Boot (Bundled Production Build)
-Open your browser and navigate to:
-```
-http://localhost:8080/
-```
-*(Spring Boot automatically serves the compiled Angular standalone bundle from `src/main/resources/static/`).*
-
-#### Option B: Dedicated Angular Dev Server (with Hot Reloading)
-In a separate terminal:
-```bash
-cd frontend
-npm start
-```
-Then visit:
-```
-http://localhost:4200/
-```
-*(The Angular dev server connects to the Spring Boot REST backend on port 8080).*
+*(Spring Boot automatically bundles and serves the production-compiled Angular application from `src/main/resources/static/`).*
 
 ---
 
-## 📡 5. Complete REST API Catalog
+## 📡 5. REST API Endpoints Summary
 
-All endpoints return uniform JSON responses wrapped in `ApiResponse<T>` or `ErrorResponse`.
+All responses follow a uniform structure: `{ "success": boolean, "message": string, "data": T, "timestamp": string }`.
 
-### A. Authentication APIs (`/api/auth`)
-
-#### 1. Register New Customer
-- **Endpoint:** `POST /api/auth/register`
-- **Request Body:**
-```json
-{
-  "fullName": "Amit Verma",
-  "email": "amit@example.com",
-  "password": "Password@123"
-}
-```
-- **Response (201 Created):**
-```json
-{
-  "success": true,
-  "message": "Registration successful! Default SAVINGS account opened with ₹10,000 demo credit.",
-  "data": {
-    "token": "7a35c24e-b35a-4cb7-a508-8e6fa39b4b02",
-    "userId": 4,
-    "fullName": "Amit Verma",
-    "email": "amit@example.com",
-    "role": "CUSTOMER",
-    "accounts": [
-      {
-        "id": 4,
-        "accountNumber": "1005839201",
-        "accountType": "SAVINGS",
-        "balance": 10000.00,
-        "ownerName": "Amit Verma",
-        "ownerEmail": "amit@example.com",
-        "createdAt": "2026-10-29T15:30:00"
-      }
-    ]
-  },
-  "timestamp": "2026-10-29T15:30:00"
-}
-```
-
-#### 2. User Login
-- **Endpoint:** `POST /api/auth/login`
-- **Request Body:**
-```json
-{
-  "email": "rahul@bankease.com",
-  "password": "rahul123"
-}
-```
-- **Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "Login successful.",
-  "data": {
-    "token": "d135ea29-37e4-4a43-982d-45f8cb3392d7",
-    "userId": 2,
-    "fullName": "Rahul Sharma",
-    "email": "rahul@bankease.com",
-    "role": "CUSTOMER",
-    "accounts": [...]
-  }
-}
-```
-
-#### 3. Verify Session (`/api/auth/me`)
-- **Endpoint:** `GET /api/auth/me`
-- **Header:** `Authorization: Bearer <token>`
-
-#### 4. Logout
-- **Endpoint:** `POST /api/auth/logout`
-- **Header:** `Authorization: Bearer <token>`
+| Category | Method | Endpoint | Access Level | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **Auth** | `POST` | `/api/auth/register` | Public | Register new user & auto-provision savings account |
+| **Auth** | `POST` | `/api/auth/login` | Public | Authenticate user & issue signed JWT |
+| **Auth** | `GET` | `/api/auth/me` | Authenticated | Retrieve authenticated session details |
+| **Accounts** | `GET` | `/api/accounts/my-accounts` | Authenticated | Fetch active accounts and balances |
+| **Accounts** | `GET` | `/api/accounts/{accountNumber}` | Authenticated | Fetch account details by account number |
+| **Transfers** | `POST` | `/api/transfers` | Authenticated | Execute atomic fund transfer (2FA OTP for $\ge$ ₹25,000) |
+| **Transactions**| `GET` | `/api/transactions/account/{number}`| Authenticated | Retrieve reverse-chronological account statement |
+| **Bill Pay** | `GET` | `/api/bills/payees` | Authenticated | List registered utility payees |
+| **Bill Pay** | `POST` | `/api/bills/pay` | Authenticated | Execute instant utility bill payment |
+| **Bill Pay** | `POST` | `/api/bills/schedule` | Authenticated | Schedule future automated bill payment |
+| **Loans** | `GET` | `/api/loans/calculate-emi` | Public / Auth | Calculate exact loan EMI using amortization formula |
+| **Loans** | `POST` | `/api/loans/apply` | Authenticated | Submit formal loan application |
+| **Loans** | `POST` | `/api/loans/{id}/approve` | Admin Only | Approve loan and disburse funds to account |
+| **Investments** | `GET` | `/api/investments/calculate-fd` | Public / Auth | Simulate compound returns for Fixed Deposits |
+| **Investments** | `POST` | `/api/investments` | Authenticated | Book new FD, RD, or Mutual Fund investment |
+| **Investments** | `POST` | `/api/investments/{id}/close` | Authenticated | Liquidate investment and credit proceeds to account |
+| **Compliance** | `POST` | `/api/compliance/send-otp` | Authenticated | Dispatch 6-digit session-bound transfer OTP |
+| **Compliance** | `POST` | `/api/compliance/update-limit`| Authenticated | Update user daily transfer limit |
+| **Compliance** | `GET` | `/api/compliance/kyc-status` | Authenticated | Retrieve KYC verification status |
+| **Compliance** | `GET` | `/api/compliance/audit-logs` | Admin Only | View system-wide security and compliance logs |
+| **Admin** | `GET` | `/api/admin/users` | Admin Only | List all registered users and compliance statuses |
+| **Admin** | `GET` | `/api/admin/accounts` | Admin Only | System-wide account liquidity and balances overview |
+| **Admin** | `GET` | `/api/admin/transactions` | Admin Only | Complete audit trail of all transactions |
 
 ---
 
-### B. Account APIs (`/api/accounts`)
+## 🔒 6. Security & Production Standards
 
-#### 1. Get My Accounts & Balances
-- **Endpoint:** `GET /api/accounts/my-accounts`
-- **Header:** `Authorization: Bearer <token>`
-- **Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "Accounts fetched successfully.",
-  "data": [
-    {
-      "id": 2,
-      "accountNumber": "1001001001",
-      "accountType": "SAVINGS",
-      "balance": 10000.00,
-      "ownerName": "Rahul Sharma",
-      "ownerEmail": "rahul@bankease.com",
-      "createdAt": "2026-10-29T15:00:00"
-    }
-  ]
-}
-```
-
-#### 2. Get Account by Number
-- **Endpoint:** `GET /api/accounts/{accountNumber}`
-- **Header:** `Authorization: Bearer <token>`
+1. **Role-Based Access Control (RBAC):**
+   - Public access is strictly restricted to login, registration, and calculator simulation routes.
+   - All operational endpoints mandate authentication via `JwtAuthenticationFilter`.
+   - Administrative routes (`/api/admin/**`) strictly enforce `hasRole('ADMIN')`.
+2. **Stateless JWT Lifecycle:**
+   - Cryptographic signing verified via HMAC-SHA256 (`HS512`).
+   - Secret key externalized via `JWT_SECRET` with startup fail-fast validation (minimum 32 characters).
+3. **Data Protection & PII Masking:**
+   - Identity documents (Aadhaar / PAN) are masked (`XXXX-XXXX-1234`) prior to entering audit logs.
+   - Database credentials and API tokens are never checked into version control.
+4. **Brute-Force Attack Mitigation:**
+   - Accounts are automatically frozen upon 3 consecutive failed login attempts, requiring administrative unlock.
+5. **High-Precision Financial Math:**
+   - All monetary amounts, interest calculations, and EMI engines utilize `BigDecimal` with explicit scale and rounding mode (`RoundingMode.HALF_EVEN`), preventing IEEE 754 floating-point inaccuracies.
+6. **Automated Test Coverage:**
+   - Comprehensive suite of 40 unit and integration tests covering security authorization, transfer transactional atomicity, EMI mathematical formulas, and legacy compliance data repairs.
 
 ---
 
-### C. Fund Transfer API (`/api/transfers`)
+## 📄 License
 
-#### 1. Transfer Funds
-- **Endpoint:** `POST /api/transfers`
-- **Header:** `Authorization: Bearer <token>`
-- **Request Body:**
-```json
-{
-  "fromAccountNumber": "1001001001",
-  "toAccountNumber": "1002002002",
-  "amount": 1500.00,
-  "description": "Project milestone share"
-}
-```
-- **Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "Transfer completed successfully.",
-  "data": {
-    "transactionId": 4,
-    "status": "SUCCESS",
-    "message": "Transfer completed successfully.",
-    "fromAccountNumber": "1001001001",
-    "toAccountNumber": "1002002002",
-    "amount": 1500.00,
-    "remainingBalance": 8500.00,
-    "timestamp": "2026-10-29T15:32:00"
-  }
-}
-```
-
-- **Example Error Response (Insufficient Balance - 400 Bad Request):**
-```json
-{
-  "timestamp": "2026-10-29T15:33:00",
-  "status": 400,
-  "error": "Insufficient Balance",
-  "message": "Insufficient funds. Available balance: ₹8500.00",
-  "path": "/api/transfers"
-}
-```
-*(Note: A transaction with status `FAILED` is automatically saved in MySQL).*
-
----
-
-### D. Transaction History API (`/api/transactions`)
-
-#### 1. Get Account Statement
-- **Endpoint:** `GET /api/transactions/account/{accountNumber}`
-- **Header:** `Authorization: Bearer <token>`
-- **Response (200 OK, Newest First):**
-```json
-{
-  "success": true,
-  "message": "Transaction history retrieved successfully.",
-  "data": [
-    {
-      "id": 4,
-      "fromAccountNumber": "1001001001",
-      "fromOwnerName": "Rahul Sharma",
-      "toAccountNumber": "1002002002",
-      "toOwnerName": "Priya Patel",
-      "amount": 1500.00,
-      "type": "TRANSFER",
-      "status": "SUCCESS",
-      "description": "Project milestone share",
-      "createdAt": "2026-10-29T15:32:00"
-    },
-    {
-      "id": 2,
-      "fromAccountNumber": "SYSTEM DEPOSIT",
-      "fromOwnerName": "BankEase System",
-      "toAccountNumber": "1001001001",
-      "toOwnerName": "Rahul Sharma",
-      "amount": 10000.00,
-      "type": "DEPOSIT",
-      "status": "SUCCESS",
-      "description": "Welcome bonus / demo opening credit",
-      "createdAt": "2026-10-29T15:00:00"
-    }
-  ]
-}
-```
-
----
-
-### E. Admin Management APIs (`/api/admin`)
-*(Protected: Requires `Role.ADMIN`)*
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/admin/users` | List all users with linked accounts & compliance status |
-| `GET` | `/api/admin/accounts` | List all system bank accounts and balances |
-| `GET` | `/api/admin/transactions` | Full audit log of all system transactions |
-
----
-
-### F. Bill Pay & Utility Services (`/api/bills`)
-*(Protected: Requires `Role.CUSTOMER` or `Role.ADMIN`)*
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/bills/payees` | List registered utility payees (Electricity, Water, DTH, etc.) |
-| `POST` | `/api/bills/payees` | Register a new utility payee |
-| `POST` | `/api/bills/pay` | Instant bill payment debited directly from bank account |
-| `POST` | `/api/bills/schedule` | Schedule a future or recurring utility bill payment |
-| `GET` | `/api/bills/history` | View complete bill payment history and statuses |
-
----
-
-### G. Loan & EMI Engine (`/api/loans`)
-*(Protected)*
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/loans/calculate-emi` | Calculate exact EMI using mathematical formula ($E = \frac{P \cdot r \cdot (1+r)^n}{(1+r)^n - 1}$) |
-| `POST` | `/api/loans/apply` | Apply for Personal, Home, Education, or Vehicle loan |
-| `GET` | `/api/loans/my-loans` | View customer active and historical loans |
-| `GET` | `/api/loans/all` | Admin: review all customer loan applications |
-| `POST` | `/api/loans/{id}/approve` | Admin: approve loan & automatically disburse funds to account |
-| `POST` | `/api/loans/{id}/reject` | Admin: reject loan application with remarks |
-
----
-
-### H. Wealth & Investments Simulator (`/api/investments`)
-*(Protected)*
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/investments/calculate-fd` | Simulate FD returns with quarterly compounding |
-| `POST` | `/api/investments` | Book a Fixed Deposit, Recurring Deposit, or Mutual Fund |
-| `GET` | `/api/investments/my-investments`| Portfolio view of all active and matured investments |
-| `POST` | `/api/investments/{id}/close` | Prematurely liquidate or redeem investment with proceeds credited |
-
----
-
-### I. Compliance, KYC & Risk Engine (`/api/compliance`)
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/compliance/send-otp` | Generate time-sensitive 6-digit OTP for 2FA transfers ($\ge$ ₹25,000) |
-| `POST` | `/api/compliance/verify-otp` | Validate 2FA OTP |
-| `GET` | `/api/compliance/kyc-status` | Check customer KYC verification tier |
-| `POST` | `/api/compliance/update-kyc` | Update KYC status (PENDING, VERIFIED, REJECTED) |
-| `POST` | `/api/compliance/update-limit` | Modify daily transaction compliance limit |
-| `GET` | `/api/compliance/audit-logs` | Admin: access real-time security audit trails |
-| `POST` | `/api/compliance/unlock-user/{id}` | Admin: unlock accounts frozen after 3 failed login attempts |
-
----
-
-## 🌟 6. Enterprise Features & Viva Highlights
-
-During your evaluation or project viva with faculty and HCL collaborators, you can highlight how BankEase meets enterprise production standards:
-1. **Spring Security 6 with Role-Based Access Control (RBAC):**
-   - Strictly enforces `.anyRequest().authenticated()` for all API operations.
-   - Restricts `/api/admin/**` endpoints strictly to `hasRole("ADMIN")`.
-   - Custom `AuthenticationEntryPoint` (401) and `AccessDeniedHandler` (403) return uniform JSON error responses.
-2. **Stateless JWT Security Architecture:**
-   - 256-bit HMAC-SHA256 tokens externalized to `bankease.jwt.secret` (supports production `JWT_SECRET` environment variable).
-   - Validated on every request via `JwtAuthenticationFilter`.
-3. **Simulated 2FA OTP & Spoofing Protection:**
-   - High-value transfers ($\ge$ ₹25,000) require a 6-digit time-sensitive (5 min) OTP.
-   - Both `/send-otp` and `/verify-otp` endpoints strictly authenticate and bind to the caller's session token, preventing third-party email spoofing.
-   - *Viva Note:* In production banking, the OTP is dispatched via an SMS/Email gateway (e.g. Twilio/SendGrid). In this project, the code is fully simulated and returned in payload for academic viva demonstration.
-4. **KYC Lifecycle & Document Masking (PII Protection):**
-   - New user registrations default to `PENDING` KYC status.
-   - When customers submit Aadhaar or PAN details, the service masks the document number (`XXXX-XXXX-1234`) before writing to audit logs to ensure compliance with privacy laws.
-   - Administrators review and formally approve (`VERIFIED`) or reject (`REJECTED`) KYC from the Admin Dashboard.
-5. **High-Precision BigDecimal Financial Math:**
-   - Loan EMI calculations use `BigDecimal` with 16-digit `MathContext` and `BigDecimal.pow(tenureMonths, mc)`:
-     $$E = \frac{P \cdot r \cdot (1+r)^n}{(1+r)^n - 1}$$
-   - Completely eliminates IEEE 754 floating-point inaccuracies typical of `double` calculations.
-6. **Production CORS Configuration:**
-   - Centrally configured via `bankease.cors.allowed-origins` (e.g. `http://localhost:4200`, `http://localhost:8080`), replacing permissive `*` wildcards.
-7. **Three-Strike Brute Force Protection:**
-   - Automatic account lockout triggered upon 3 consecutive failed login attempts, recorded in audit logs with administrative unlock capability.
-8. **Automated Test Coverage:**
-   - 28 unit and integration tests covering JWT verification, BigDecimal EMI calculations, OTP expiration, account lockouts, KYC masking, and transfer transactional atomicity.
-
----
-Developed as a solo academic project in collaboration with **HCL**.
-
+This project is licensed under the [MIT License](LICENSE).

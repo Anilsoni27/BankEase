@@ -70,7 +70,7 @@ public class ComplianceService {
 
         if (exposeOtpInResponse) {
             result.put("message", "OTP sent successfully. Valid for 5 minutes.");
-            result.put("notice", "SIMULATED OTP: In production banking, this OTP is dispatched via SMS/Email gateway. Displayed here for academic viva/demo.");
+            result.put("notice", "SIMULATED OTP: In production banking, this OTP is dispatched via SMS/Email gateway. Displayed in response when demo mode is enabled.");
             result.put("otpCode", otpCode); // Only exposed when OTP_DEMO_MODE=true
         } else {
             result.put("message", "OTP has been sent to your registered contact details. Valid for 5 minutes.");
