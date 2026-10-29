@@ -9,6 +9,9 @@ import com.bankease.backend.exception.ResourceNotFoundException;
 import com.bankease.backend.exception.UnauthorizedException;
 import com.bankease.backend.repository.OtpVerificationRepository;
 import com.bankease.backend.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,23 +28,28 @@ import java.util.Map;
 @Service
 public class ComplianceService {
 
+    private static final Logger log = LoggerFactory.getLogger(ComplianceService.class);
+
     private final OtpVerificationRepository otpVerificationRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final boolean exposeOtpInResponse;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public ComplianceService(OtpVerificationRepository otpVerificationRepository,
                              UserRepository userRepository,
-                             AuditLogService auditLogService) {
+                             AuditLogService auditLogService,
+                             @Value("${bankease.otp.expose-in-response:false}") boolean exposeOtpInResponse) {
         this.otpVerificationRepository = otpVerificationRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
+        this.exposeOtpInResponse = exposeOtpInResponse;
     }
 
     /**
      * Generates a 6-digit OTP for 2-factor authentication / high value transfer authorization.
-     * In a production environment, this OTP is dispatched via an SMS/Email gateway.
-     * It is returned in the API payload strictly as a simulation for academic demonstration.
+     * When exposeOtpInResponse is true (OTP_DEMO_MODE=true), the OTP code is returned in the API response.
+     * When false (production default), it simulates SMS gateway delivery by logging to console only.
      */
     @Transactional
     public Map<String, Object> generateOtp(String userEmail, String purpose) {
@@ -53,12 +61,21 @@ public class ComplianceService {
 
         auditLogService.log(userEmail, "OTP_GENERATED", "OTP generated for purpose: " + purpose);
 
+        // Always log simulated SMS to server console for audit/demo
+        log.info("[SIMULATED SMS] OTP for {}: {}", userEmail, otpCode);
+
         Map<String, Object> result = new HashMap<>();
-        result.put("message", "OTP sent successfully. Valid for 5 minutes.");
-        result.put("notice", "SIMULATED OTP: In production banking, this OTP is dispatched via SMS/Email gateway. Displayed here for academic viva/demo.");
-        result.put("otpCode", otpCode); // Returned for college demo & testing convenience!
         result.put("purpose", purpose);
         result.put("expiresAt", expiresAt);
+
+        if (exposeOtpInResponse) {
+            result.put("message", "OTP sent successfully. Valid for 5 minutes.");
+            result.put("notice", "SIMULATED OTP: In production banking, this OTP is dispatched via SMS/Email gateway. Displayed here for academic viva/demo.");
+            result.put("otpCode", otpCode); // Only exposed when OTP_DEMO_MODE=true
+        } else {
+            result.put("message", "OTP has been sent to your registered contact details. Valid for 5 minutes.");
+        }
+
         return result;
     }
 

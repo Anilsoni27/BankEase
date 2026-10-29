@@ -4,6 +4,7 @@ import com.bankease.backend.entity.*;
 import com.bankease.backend.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,7 @@ public class DataSeeder implements CommandLineRunner {
     private final LoanRepository loanRepository;
     private final InvestmentRepository investmentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final boolean seedEnabled;
 
     public DataSeeder(UserRepository userRepository,
                       AccountRepository accountRepository,
@@ -30,7 +32,8 @@ public class DataSeeder implements CommandLineRunner {
                       BillPayeeRepository billPayeeRepository,
                       LoanRepository loanRepository,
                       InvestmentRepository investmentRepository,
-                      PasswordEncoder passwordEncoder) {
+                      PasswordEncoder passwordEncoder,
+                      @Value("${bankease.seed.enabled:true}") boolean seedEnabled) {
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
@@ -38,10 +41,16 @@ public class DataSeeder implements CommandLineRunner {
         this.loanRepository = loanRepository;
         this.investmentRepository = investmentRepository;
         this.passwordEncoder = passwordEncoder;
+        this.seedEnabled = seedEnabled;
     }
 
     @Override
     public void run(String... args) {
+        if (!seedEnabled) {
+            log.info("BankEase initial demo seeding is DISABLED via configuration (SEED_ENABLED=false). Skipping demo seed.");
+            return;
+        }
+
         if (userRepository.count() == 0) {
             log.info("Seeding initial BankEase users and sample accounts...");
 
@@ -58,7 +67,7 @@ public class DataSeeder implements CommandLineRunner {
 
             // 2. Customer 1: Rahul
             User customer1 = new User("Rahul Sharma", "rahul@bankease.com", passwordEncoder.encode("rahul123"), Role.CUSTOMER);
-            customer1.setKycStatus(KycStatus.VERIFIED);
+            customer1.setKycStatus(KycStatus.PENDING);
             userRepository.save(customer1);
 
             Account account1 = new Account("1001001001", customer1, new BigDecimal("10000.00"), AccountType.SAVINGS);
@@ -69,7 +78,7 @@ public class DataSeeder implements CommandLineRunner {
 
             // 3. Customer 2: Priya
             User customer2 = new User("Priya Patel", "priya@bankease.com", passwordEncoder.encode("priya123"), Role.CUSTOMER);
-            customer2.setKycStatus(KycStatus.VERIFIED);
+            customer2.setKycStatus(KycStatus.PENDING);
             userRepository.save(customer2);
 
             Account account2 = new Account("1002002002", customer2, new BigDecimal("10000.00"), AccountType.SAVINGS);

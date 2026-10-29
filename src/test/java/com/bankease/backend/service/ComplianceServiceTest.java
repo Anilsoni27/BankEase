@@ -12,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -37,8 +36,8 @@ class ComplianceServiceTest {
     @Mock
     private AuditLogService auditLogService;
 
-    @InjectMocks
-    private ComplianceService complianceService;
+    private ComplianceService complianceServiceDemo;
+    private ComplianceService complianceServiceProd;
 
     private User customer;
     private User admin;
@@ -49,12 +48,15 @@ class ComplianceServiceTest {
         customer.setId(10L);
         admin = new User("System Admin", "admin@test.com", "pass", Role.ADMIN);
         admin.setId(1L);
+
+        complianceServiceDemo = new ComplianceService(otpVerificationRepository, userRepository, auditLogService, true);
+        complianceServiceProd = new ComplianceService(otpVerificationRepository, userRepository, auditLogService, false);
     }
 
     @Test
-    @DisplayName("Should generate 6-digit OTP with simulated demo notice")
-    void testGenerateOtp() {
-        Map<String, Object> result = complianceService.generateOtp("rahul@test.com", "HIGH_VALUE_TRANSFER");
+    @DisplayName("Demo Mode (OTP_DEMO_MODE=true): Should expose otpCode and notice in API response")
+    void testGenerateOtpDemoModeExposed() {
+        Map<String, Object> result = complianceServiceDemo.generateOtp("rahul@test.com", "HIGH_VALUE_TRANSFER");
 
         assertNotNull(result);
         assertTrue(result.containsKey("otpCode"));
@@ -68,13 +70,27 @@ class ComplianceServiceTest {
     }
 
     @Test
+    @DisplayName("Production Mode (OTP_DEMO_MODE=false): Should NOT expose otpCode or notice in API response")
+    void testGenerateOtpProductionModeHidden() {
+        Map<String, Object> result = complianceServiceProd.generateOtp("rahul@test.com", "HIGH_VALUE_TRANSFER");
+
+        assertNotNull(result);
+        assertFalse(result.containsKey("otpCode"), "Production mode must not leak OTP code in API payload");
+        assertFalse(result.containsKey("notice"));
+        assertTrue(result.get("message").toString().contains("registered contact details"));
+
+        verify(otpVerificationRepository).save(any(OtpVerification.class));
+        verify(auditLogService).log(eq("rahul@test.com"), eq("OTP_GENERATED"), anyString());
+    }
+
+    @Test
     @DisplayName("Should verify valid OTP successfully and mark as used")
     void testVerifyValidOtp() {
         OtpVerification otp = new OtpVerification("rahul@test.com", "654321", "HIGH_VALUE_TRANSFER", LocalDateTime.now().plusMinutes(5));
         when(otpVerificationRepository.findTopByUserEmailAndPurposeAndIsUsedFalseOrderByCreatedAtDesc("rahul@test.com", "HIGH_VALUE_TRANSFER"))
                 .thenReturn(Optional.of(otp));
 
-        boolean valid = complianceService.verifyOtp("rahul@test.com", "654321", "HIGH_VALUE_TRANSFER");
+        boolean valid = complianceServiceDemo.verifyOtp("rahul@test.com", "654321", "HIGH_VALUE_TRANSFER");
 
         assertTrue(valid);
         assertTrue(otp.isUsed());
@@ -89,18 +105,18 @@ class ComplianceServiceTest {
         when(otpVerificationRepository.findTopByUserEmailAndPurposeAndIsUsedFalseOrderByCreatedAtDesc("rahul@test.com", "HIGH_VALUE_TRANSFER"))
                 .thenReturn(Optional.of(otp));
 
-        assertThrows(BankeaseException.class, () -> complianceService.verifyOtp("rahul@test.com", "000000", "HIGH_VALUE_TRANSFER"));
+        assertThrows(BankeaseException.class, () -> complianceServiceDemo.verifyOtp("rahul@test.com", "000000", "HIGH_VALUE_TRANSFER"));
         verify(auditLogService).log(eq("rahul@test.com"), eq("OTP_FAILED"), anyString());
     }
 
     @Test
     @DisplayName("Should mask document numbers correctly to protect sensitive PII")
     void testMaskDocumentNumber() {
-        assertEquals("XXXX-XXXX-9012", complianceService.maskDocumentNumber("1234-5678-9012"));
-        assertEquals("XXXX-XXXX-9012", complianceService.maskDocumentNumber("123456789012"));
-        assertEquals("XXXX-XXXX-234F", complianceService.maskDocumentNumber("ABCDE1234F"));
-        assertEquals("XXXX-XXXX-XXXX", complianceService.maskDocumentNumber(""));
-        assertEquals("XXXX-XXXX-XXXX", complianceService.maskDocumentNumber(null));
+        assertEquals("XXXX-XXXX-9012", complianceServiceDemo.maskDocumentNumber("1234-5678-9012"));
+        assertEquals("XXXX-XXXX-9012", complianceServiceDemo.maskDocumentNumber("123456789012"));
+        assertEquals("XXXX-XXXX-234F", complianceServiceDemo.maskDocumentNumber("ABCDE1234F"));
+        assertEquals("XXXX-XXXX-XXXX", complianceServiceDemo.maskDocumentNumber(""));
+        assertEquals("XXXX-XXXX-XXXX", complianceServiceDemo.maskDocumentNumber(null));
     }
 
     @Test
@@ -108,7 +124,7 @@ class ComplianceServiceTest {
     void testSubmitKycMasked() {
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        User updated = complianceService.submitKyc(customer, "Aadhaar Card", "1234-5678-9012");
+        User updated = complianceServiceDemo.submitKyc(customer, "Aadhaar Card", "1234-5678-9012");
 
         assertEquals(KycStatus.PENDING, updated.getKycStatus());
         verify(auditLogService).log(eq("rahul@test.com"), eq("KYC_SUBMITTED"), contains("XXXX-XXXX-9012"));
@@ -120,7 +136,7 @@ class ComplianceServiceTest {
         when(userRepository.findById(10L)).thenReturn(Optional.of(customer));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        User verified = complianceService.verifyKycStatus(10L, KycStatus.VERIFIED, admin);
+        User verified = complianceServiceDemo.verifyKycStatus(10L, KycStatus.VERIFIED, admin);
 
         assertEquals(KycStatus.VERIFIED, verified.getKycStatus());
         verify(auditLogService).log(eq("admin@test.com"), eq("KYC_VERIFIED"), contains("rahul@test.com"));
@@ -129,7 +145,7 @@ class ComplianceServiceTest {
     @Test
     @DisplayName("Should reject KYC verification attempt by non-admin")
     void testCustomerCannotVerifyKyc() {
-        assertThrows(UnauthorizedException.class, () -> complianceService.verifyKycStatus(10L, KycStatus.VERIFIED, customer));
+        assertThrows(UnauthorizedException.class, () -> complianceServiceDemo.verifyKycStatus(10L, KycStatus.VERIFIED, customer));
     }
 
     @Test
@@ -137,7 +153,7 @@ class ComplianceServiceTest {
     void testUpdateDailyLimit() {
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        User updated = complianceService.updateDailyLimit(customer, new BigDecimal("75000.00"));
+        User updated = complianceServiceDemo.updateDailyLimit(customer, new BigDecimal("75000.00"));
 
         assertEquals(new BigDecimal("75000.00"), updated.getDailyLimit());
         verify(auditLogService).log(eq("rahul@test.com"), eq("LIMIT_UPDATED"), contains("75000.00"));
@@ -146,8 +162,8 @@ class ComplianceServiceTest {
     @Test
     @DisplayName("Should reject zero or negative daily transfer limit")
     void testUpdateDailyLimitNegative() {
-        assertThrows(BankeaseException.class, () -> complianceService.updateDailyLimit(customer, BigDecimal.ZERO));
-        assertThrows(BankeaseException.class, () -> complianceService.updateDailyLimit(customer, new BigDecimal("-500")));
+        assertThrows(BankeaseException.class, () -> complianceServiceDemo.updateDailyLimit(customer, BigDecimal.ZERO));
+        assertThrows(BankeaseException.class, () -> complianceServiceDemo.updateDailyLimit(customer, new BigDecimal("-500")));
     }
 
     @Test
@@ -159,7 +175,7 @@ class ComplianceServiceTest {
         when(userRepository.findById(10L)).thenReturn(Optional.of(customer));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        User unlocked = complianceService.unlockUser(10L, admin);
+        User unlocked = complianceServiceDemo.unlockUser(10L, admin);
 
         assertFalse(unlocked.isAccountLocked());
         assertEquals(0, unlocked.getFailedLoginAttempts());

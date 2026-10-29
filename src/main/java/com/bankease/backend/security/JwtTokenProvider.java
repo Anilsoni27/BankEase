@@ -12,7 +12,7 @@ import java.util.Date;
 /**
  * JwtTokenProvider generates, signs, and parses JSON Web Tokens (JWT)
  * using HMAC-SHA256 for secure, stateless authentication.
- * The secret key and expiration period are externalized to application properties / env variables.
+ * The secret key must be provided via the JWT_SECRET environment variable (minimum 32 characters).
  */
 @Component
 public class JwtTokenProvider {
@@ -21,8 +21,11 @@ public class JwtTokenProvider {
     private final long jwtExpirationMs;
 
     public JwtTokenProvider(
-            @Value("${bankease.jwt.secret:BankEaseSecureNextGenNetBankingSecretKey2026!@#$%^&*()_+}") String secret,
+            @Value("${bankease.jwt.secret}") String secret,
             @Value("${bankease.jwt.expiration-ms:86400000}") long jwtExpirationMs) {
+        if (secret == null || secret.isBlank() || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET environment variable must be set (minimum 32 characters)");
+        }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.jwtExpirationMs = jwtExpirationMs;
     }

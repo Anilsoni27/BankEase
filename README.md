@@ -74,15 +74,18 @@ public Transaction record(Account fromAccount, Account toAccount,
 
 ## 🔑 3. Pre-Seeded Accounts (CommandLineRunner)
 
-When you first launch BankEase, the `DataSeeder` automatically generates three testing accounts:
+When you first launch BankEase with `SEED_ENABLED=true`, the `DataSeeder` automatically generates three testing accounts:
 
-| User | Email | Password | Role | Account Number | Opening Balance |
-|---|---|---|---|---|---|
-| **System Admin** | `admin@bankease.com` | `admin123` | `ADMIN` | `1009999999` | ₹ 50,000.00 |
-| **Rahul Sharma** | `rahul@bankease.com` | `rahul123` | `CUSTOMER` | `1001001001` | ₹ 10,000.00 |
-| **Priya Patel** | `priya@bankease.com` | `priya123` | `CUSTOMER` | `1002002002` | ₹ 10,000.00 |
+| User | Email | Password | Role | Account Number | Opening Balance | KYC Status |
+|---|---|---|---|---|---|---|
+| **System Admin** | `admin@bankease.com` | `admin123` | `ADMIN` | `1009999999` | ₹ 50,000.00 | `VERIFIED` |
+| **Rahul Sharma** | `rahul@bankease.com` | `rahul123` | `CUSTOMER` | `1001001001` | ₹ 10,000.00 | `PENDING` |
+| **Priya Patel** | `priya@bankease.com` | `priya123` | `CUSTOMER` | `1002002002` | ₹ 10,000.00 | `PENDING` |
 
 *(The web interface features 1-click quick autofill buttons for these credentials).*
+
+> [!WARNING]
+> **Production Security Notice:** Demo credentials (`admin123`, `rahul123`, `priya123`) sirf academic demo aur viva testing ke liye hain. Production environment mein `SEED_ENABLED=false` rakhein aur admin password turant change karein.
 
 ---
 
@@ -98,21 +101,45 @@ Open your MySQL CLI or MySQL Workbench and run:
 CREATE DATABASE IF NOT EXISTS bankease_db;
 ```
 
-### Step 2: Configure Password & Environment Variables
-For security, credentials are not hardcoded. You can either set the `DB_PASSWORD` environment variable or fill in the placeholder in `src/main/resources/application.properties`:
+### Step 2: Configure Environment Variables & Secrets
+BankEase follows strict zero-trust security. Secrets are never hardcoded in source control.
 
-**Option 1: Using Environment Variables (Recommended):**
+#### 1. Generate a Cryptographically Secure 256-bit JWT Secret:
+- **On Windows (PowerShell):**
+  ```powershell
+  [Convert]::ToBase64String((1..48 | % { Get-Random -Maximum 256 }))
+  ```
+- **On Linux / macOS:**
+  ```bash
+  openssl rand -base64 48
+  ```
+
+#### 2. Set the Environment Variables:
+**On Windows (PowerShell):**
 ```powershell
-$env:DB_PASSWORD="YOUR_ACTUAL_PASSWORD"
+$env:JWT_SECRET="YOUR_GENERATED_32_CHAR_OR_LONGER_SECRET_KEY"
+$env:DB_PASSWORD="YOUR_ACTUAL_MYSQL_ROOT_PASSWORD"
+
+# Optional settings for college viva demo:
+$env:OTP_DEMO_MODE="true"    # Set to true for viva demo to expose OTP in API payload & UI
+$env:SEED_ENABLED="true"     # Set to false in production to disable pre-seeded demo accounts
 ```
 
-**Option 2: In `application.properties`:**
-```properties
-spring.datasource.password=${DB_PASSWORD:YOUR_ACTUAL_PASSWORD}
+**On Linux / macOS (Bash / Zsh):**
+```bash
+export JWT_SECRET="YOUR_GENERATED_32_CHAR_OR_LONGER_SECRET_KEY"
+export DB_PASSWORD="YOUR_ACTUAL_MYSQL_ROOT_PASSWORD"
+export OTP_DEMO_MODE="true"
+export SEED_ENABLED="true"
 ```
+
+> [!NOTE]
+> **Viva Demo Mode (`OTP_DEMO_MODE`):**
+> - When `OTP_DEMO_MODE=true`: The generated 6-digit OTP is returned in the API payload and displayed on screen in a simulated demo badge for easy viva presentation.
+> - When `OTP_DEMO_MODE=false` (Production Default): The OTP is hidden from the API payload and only printed to the secure server console as `[SIMULATED SMS] OTP for <email>: 123456`, simulating an external SMS gateway delivery.
 
 ### Step 3: Run Automated Test Suite
-Run the 28 automated unit and integration tests (uses fast in-memory H2 database, zero external dependencies required):
+Run the 28+ automated unit and integration tests (uses fast in-memory H2 database, zero external dependencies required):
 ```powershell
 .\mvnw.cmd test
 ```
@@ -133,7 +160,7 @@ Or build and run the packaged JAR:
 java -jar target/bankease-backend-0.0.1-SNAPSHOT.jar
 ```
 
-### Step 4: Access the Frontend
+### Step 5: Access the Frontend
 
 You have two convenient ways to access the Angular application:
 

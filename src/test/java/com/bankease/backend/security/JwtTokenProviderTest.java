@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class JwtTokenProviderTest {
 
     private JwtTokenProvider jwtTokenProvider;
-    private final String secret = "BankEaseTestSecretKeyForUnitTestsMustBeAtLeast256BitsLong2026!@#$%^&*()_+";
+    private final String secret = "BankEaseTestSecretKeyForUnitTestsMustBeAtLeast32BytesLong2026!@#$%^&*()_+";
     private final long expirationMs = 3600000; // 1 hour
 
     @BeforeEach
@@ -41,11 +41,20 @@ class JwtTokenProviderTest {
     @DisplayName("Should reject token signed with different key")
     void testTamperedSignatureToken() {
         JwtTokenProvider anotherProvider = new JwtTokenProvider(
-                "DifferentSecretKeyMustAlsoBeAtLeast256BitsLongForHmacSha256Signature2026!@#$",
+                "DifferentSecretKeyMustAlsoBeAtLeast32BytesLongForHmacSha256Signature2026!@#$",
                 expirationMs
         );
         String foreignToken = anotherProvider.generateToken(102L, "hacker@test.com", "ADMIN");
 
         assertFalse(jwtTokenProvider.validateToken(foreignToken));
+    }
+
+    @Test
+    @DisplayName("Should fail-fast if JWT secret is null, blank, or shorter than 32 characters")
+    void testFailFastOnWeakSecret() {
+        assertThrows(IllegalStateException.class, () -> new JwtTokenProvider(null, expirationMs));
+        assertThrows(IllegalStateException.class, () -> new JwtTokenProvider("", expirationMs));
+        assertThrows(IllegalStateException.class, () -> new JwtTokenProvider("   ", expirationMs));
+        assertThrows(IllegalStateException.class, () -> new JwtTokenProvider("short_secret_under_32_bytes", expirationMs));
     }
 }

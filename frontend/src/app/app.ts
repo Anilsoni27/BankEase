@@ -267,8 +267,13 @@ export class App implements OnInit {
     const email = this.auth.currentUser()?.email || '';
     this.banking.sendOtp(email, 'HIGH_VALUE_TRANSFER').subscribe({
       next: (res) => {
-        this.simulatedOtp.set(res.data?.otpCode || '123456');
-        this.showToast(`Security OTP generated: ${res.data?.otpCode} (Valid for 5 mins)`, 'info');
+        if (res.data?.otpCode) {
+          this.simulatedOtp.set(res.data.otpCode);
+          this.showToast(`Security OTP generated: ${res.data.otpCode} (Valid for 5 mins)`, 'info');
+        } else {
+          this.simulatedOtp.set('');
+          this.showToast(res.data?.message || 'OTP sent to your registered contact details.', 'info');
+        }
       },
       error: (err) => this.showToast('Failed to generate OTP.', 'error')
     });
