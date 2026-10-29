@@ -139,4 +139,66 @@ class TransferServiceTest {
         BankeaseException ex = assertThrows(BankeaseException.class, () -> transferService.transferFunds(sender, req));
         assertTrue(ex.getMessage().contains("requires 2-factor OTP"));
     }
+
+    @Test
+    @DisplayName("User with zero dailyLimit should safely fall back to default limit and transfer ₹500 without OTP")
+    void testUserWithZeroLimitCanTransfer500WithoutOtp() {
+        sender.setDailyLimit(BigDecimal.ZERO);
+        TransferRequest req = new TransferRequest("1001001001", "1002002002", new BigDecimal("500.00"), "Grocery share", null);
+
+        when(accountRepository.findByAccountNumber("1001001001")).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findByAccountNumber("1002002002")).thenReturn(Optional.of(toAccount));
+
+        Transaction mockTx = new Transaction(fromAccount, toAccount, new BigDecimal("500.00"), TransactionType.TRANSFER, TransactionStatus.SUCCESS, "Grocery share");
+        mockTx.setId(101L);
+        when(transactionRecordService.record(eq(fromAccount), eq(toAccount), eq(new BigDecimal("500.00")), eq(TransactionType.TRANSFER), eq(TransactionStatus.SUCCESS), anyString()))
+                .thenReturn(mockTx);
+
+        TransferResponse resp = transferService.transferFunds(sender, req);
+
+        assertNotNull(resp);
+        assertEquals("SUCCESS", resp.getStatus());
+        assertEquals(new BigDecimal("9500.00"), fromAccount.getBalance());
+        assertEquals(new BigDecimal("10500.00"), toAccount.getBalance());
+        verify(accountRepository).save(fromAccount);
+        verify(accountRepository).save(toAccount);
+    }
+
+    @Test
+    @DisplayName("User with null dailyLimit should safely fall back to default limit and transfer ₹500 without OTP")
+    void testUserWithNullLimitCanTransfer500WithoutOtp() {
+        sender.setDailyLimit(null);
+        TransferRequest req = new TransferRequest("1001001001", "1002002002", new BigDecimal("500.00"), "Bill share", null);
+
+        when(accountRepository.findByAccountNumber("1001001001")).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findByAccountNumber("1002002002")).thenReturn(Optional.of(toAccount));
+
+        Transaction mockTx = new Transaction(fromAccount, toAccount, new BigDecimal("500.00"), TransactionType.TRANSFER, TransactionStatus.SUCCESS, "Bill share");
+        mockTx.setId(102L);
+        when(transactionRecordService.record(eq(fromAccount), eq(toAccount), eq(new BigDecimal("500.00")), eq(TransactionType.TRANSFER), eq(TransactionStatus.SUCCESS), anyString()))
+                .thenReturn(mockTx);
+
+        TransferResponse resp = transferService.transferFunds(sender, req);
+
+        assertNotNull(resp);
+        assertEquals("SUCCESS", resp.getStatus());
+        assertEquals(new BigDecimal("9500.00"), fromAccount.getBalance());
+        assertEquals(new BigDecimal("10500.00"), toAccount.getBalance());
+    }
+
+    @Test
+    @DisplayName("Should reject transfer exceeding effective limit and clearly show limit in error message (never ₹0.00)")
+    void testTransferExceedingEffectiveLimitRejected() {
+        sender.setDailyLimit(null); // falls back to default ₹100,000.00
+        fromAccount.setBalance(new BigDecimal("200000.00"));
+        TransferRequest req = new TransferRequest("1001001001", "1002002002", new BigDecimal("120000.00"), "Large transfer", null);
+
+        when(accountRepository.findByAccountNumber("1001001001")).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findByAccountNumber("1002002002")).thenReturn(Optional.of(toAccount));
+
+        BankeaseException ex = assertThrows(BankeaseException.class, () -> transferService.transferFunds(sender, req));
+        assertTrue(ex.getMessage().contains("₹100000.00"));
+        assertFalse(ex.getMessage().contains("₹0.00"));
+        assertTrue(ex.getMessage().contains("Compliance Settings"));
+    }
 }

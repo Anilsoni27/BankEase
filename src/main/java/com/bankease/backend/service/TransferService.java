@@ -95,18 +95,22 @@ public class TransferService {
             throw new ResourceNotFoundException("Destination account " + toAccNum + " was not found.");
         }
 
-        // 6. Daily limit compliance check
-        if (currentUser.getDailyLimit() != null && amount.compareTo(currentUser.getDailyLimit()) > 0) {
+        // 6. Daily limit compliance check (Null-safe and zero-safe fallback to default limit)
+        BigDecimal effectiveDailyLimit = (currentUser.getDailyLimit() != null && currentUser.getDailyLimit().compareTo(BigDecimal.ZERO) > 0)
+                ? currentUser.getDailyLimit()
+                : User.DEFAULT_DAILY_LIMIT;
+
+        if (amount.compareTo(effectiveDailyLimit) > 0) {
             transactionRecordService.record(
                     fromAccount,
                     toAccount,
                     amount,
                     TransactionType.TRANSFER,
                     TransactionStatus.FAILED,
-                    "Compliance rejection: Amount ₹" + amount + " exceeds daily limit of ₹" + currentUser.getDailyLimit()
+                    "Compliance rejection: Amount ₹" + amount + " exceeds daily limit of ₹" + effectiveDailyLimit
             );
-            auditLogService.log(currentUser.getEmail(), "TRANSFER_LIMIT_EXCEEDED", "Attempted transfer ₹" + amount + " above limit ₹" + currentUser.getDailyLimit());
-            throw new BankeaseException("Transfer exceeds your daily transfer limit of ₹" + currentUser.getDailyLimit() + ". Adjust your limit in Compliance Settings.");
+            auditLogService.log(currentUser.getEmail(), "TRANSFER_LIMIT_EXCEEDED", "Attempted transfer ₹" + amount + " above limit ₹" + effectiveDailyLimit);
+            throw new BankeaseException("Transfer exceeds your daily transfer limit of ₹" + effectiveDailyLimit + ". You can increase your limit in Compliance Settings.");
         }
 
         // 7. High-Value Transfer OTP Compliance (Threshold: ₹ 25,000)

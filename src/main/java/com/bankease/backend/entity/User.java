@@ -1,6 +1,7 @@
 package com.bankease.backend.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -13,6 +14,11 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "users")
 public class User {
+
+    /**
+     * Default daily transfer compliance limit (₹1,00,000.00) assigned to all accounts.
+     */
+    public static final BigDecimal DEFAULT_DAILY_LIMIT = new BigDecimal("100000.00");
 
     /**
      * @Id: Declares this field as the primary key of the table.
@@ -51,7 +57,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private KycStatus kycStatus = KycStatus.VERIFIED;
+    private KycStatus kycStatus = KycStatus.PENDING;
 
     @Column(nullable = false)
     private int failedLoginAttempts = 0;
@@ -60,7 +66,7 @@ public class User {
     private boolean accountLocked = false;
 
     @Column(nullable = false, precision = 15, scale = 2)
-    private java.math.BigDecimal dailyLimit = new java.math.BigDecimal("50000.00");
+    private BigDecimal dailyLimit = DEFAULT_DAILY_LIMIT;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -76,16 +82,29 @@ public class User {
         this.email = email;
         this.password = password;
         this.role = role;
+        this.kycStatus = (role == Role.ADMIN) ? KycStatus.VERIFIED : KycStatus.PENDING;
+        this.failedLoginAttempts = 0;
+        this.accountLocked = false;
+        this.dailyLimit = DEFAULT_DAILY_LIMIT;
     }
 
     /**
      * @PrePersist: Automatically invoked by JPA right before inserting the record into MySQL.
-     * Sets the creation timestamp if not already provided.
+     * Sets the creation timestamp and ensures non-null, valid defaults for compliance fields.
      */
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {
             this.createdAt = LocalDateTime.now();
+        }
+        if (this.dailyLimit == null || this.dailyLimit.compareTo(BigDecimal.ZERO) <= 0) {
+            this.dailyLimit = DEFAULT_DAILY_LIMIT;
+        }
+        if (this.kycStatus == null) {
+            this.kycStatus = (this.role == Role.ADMIN) ? KycStatus.VERIFIED : KycStatus.PENDING;
+        }
+        if (this.failedLoginAttempts < 0) {
+            this.failedLoginAttempts = 0;
         }
     }
 
@@ -155,11 +174,11 @@ public class User {
         this.accountLocked = accountLocked;
     }
 
-    public java.math.BigDecimal getDailyLimit() {
+    public BigDecimal getDailyLimit() {
         return dailyLimit;
     }
 
-    public void setDailyLimit(java.math.BigDecimal dailyLimit) {
+    public void setDailyLimit(BigDecimal dailyLimit) {
         this.dailyLimit = dailyLimit;
     }
 
@@ -171,4 +190,3 @@ public class User {
         this.createdAt = createdAt;
     }
 }
-
