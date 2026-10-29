@@ -120,10 +120,27 @@ java -jar target/bankease-backend-0.0.1-SNAPSHOT.jar
 ```
 
 ### Step 4: Access the Frontend
-Open your web browser and navigate to:
+
+You have two convenient ways to access the Angular application:
+
+#### Option A: Directly from Spring Boot (Bundled Production Build)
+Open your browser and navigate to:
 ```
 http://localhost:8080/
 ```
+*(Spring Boot automatically serves the compiled Angular standalone bundle from `src/main/resources/static/`).*
+
+#### Option B: Dedicated Angular Dev Server (with Hot Reloading)
+In a separate terminal:
+```bash
+cd frontend
+npm start
+```
+Then visit:
+```
+http://localhost:4200/
+```
+*(The Angular dev server connects to the Spring Boot REST backend on port 8080).*
 
 ---
 
