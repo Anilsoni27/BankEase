@@ -67,17 +67,22 @@ docker compose down
 
 ## ☁️ Option 2: Cloud Deployment (Render.com)
 
-BankEase includes a ready-to-use `render.yaml` blueprint.
+BankEase is pre-configured for 1-click Docker deployment on Render:
 
-1. Push your repository to **GitHub**.
-2. Log in to [Render Dashboard](https://dashboard.render.com/).
-3. Click **Blueprints** $\rightarrow$ **New Blueprint Instance**.
-4. Connect your `Anilsoni27/BankEase` repository.
-5. Render automatically provisions:
-   - A managed **MySQL Database**.
-   - A Docker **Web Service** building from `Dockerfile`.
-   - Automatic environment variables wiring (`DB_URL`, `JWT_SECRET`, etc.).
-6. Click **Apply**. Once deployment completes, your live banking portal is accessible on your Render URL!
+> 🌐 **Live Cloud Instance:** [https://bankease-cmio.onrender.com/](https://bankease-cmio.onrender.com/)  
+> ⚡ **Live Health Probe:** [https://bankease-cmio.onrender.com/api/health](https://bankease-cmio.onrender.com/api/health)
+
+### Fast Deployment Steps:
+1. Log in to [Render Dashboard](https://dashboard.render.com/) via GitHub.
+2. Click **New +** $\rightarrow$ **Web Service**.
+3. Select your repository: **`Anilsoni27/BankEase`**.
+4. Set Runtime to **`Docker`** and Plan to **`Free`**.
+5. Add the following **Environment Variables**:
+   - `PORT`: `8080`
+   - `JWT_SECRET`: *(A 32+ character key, or generate random)*
+   - `SPRING_PROFILES_ACTIVE`: `demo` *(Enables zero-setup standalone deployment with pre-populated demo users)*
+   - *(Optional for persistent external MySQL: set `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` from TiDB/Aiven instead)*
+6. Click **Deploy Web Service**. Once built, the application is live instantly!
 
 ---
 

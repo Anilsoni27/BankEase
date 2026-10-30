@@ -1,12 +1,33 @@
 # BankEase — NextGen Digital Banking Suite 🏦
 
-A modern, secure, and full-stack enterprise digital core banking platform engineered with **Spring Boot 4**, **Java 25**, **Angular 22**, and **MySQL 8+**.
+[![Live Demo](https://img.shields.io/badge/Demo-Live_on_Render-2ea44f?style=for-the-badge&logo=render)](https://bankease-cmio.onrender.com/)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.2-brightgreen?style=for-the-badge&logo=springboot)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/Java-25-orange?style=for-the-badge&logo=openjdk)](https://openjdk.org/)
+[![Angular](https://img.shields.io/badge/Angular-22-red?style=for-the-badge&logo=angular)](https://angular.dev/)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+
+A modern, robust, and secure full-stack enterprise digital core banking platform engineered with **Spring Boot 4**, **Java 25**, **Angular 22**, and **MySQL 8+**.
+
+🌐 **Live Cloud Demo:** [https://bankease-cmio.onrender.com/](https://bankease-cmio.onrender.com/)  
+⚡ **API Health Probe:** [https://bankease-cmio.onrender.com/api/health](https://bankease-cmio.onrender.com/api/health)
+
+---
+
+## 🔑 Demo Test Credentials
+
+To test the live portal immediately, use the pre-configured accounts (or click the 1-click quick-fill buttons in the login screen):
+
+| Role | Email | Password | Account Number | Opening Balance | KYC Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **System Admin** | `admin@bankease.com` | `admin123` | `1009999999` | ₹ 50,000.00 | `VERIFIED` |
+| **Customer** | `rahul@bankease.com` | `rahul123` | `1001001001` | ₹ 10,000.00 | `PENDING` |
+| **Customer** | `priya@bankease.com` | `priya123` | `1002002002` | ₹ 10,000.00 | `PENDING` |
 
 ---
 
 ## 📌 1. Platform Overview
 
-**BankEase** provides an end-to-end digital banking experience designed around real-world financial workflows, strict transactional consistency, regulatory risk controls, and modern security architecture.
+**BankEase** provides an end-to-end digital core banking experience designed around real-world financial workflows, strict transactional consistency, regulatory risk controls, and modern security architecture.
 
 ### Core Modules & Capabilities
 
@@ -17,7 +38,10 @@ A modern, secure, and full-stack enterprise digital core banking platform engine
 - **Bill Pay & Utilities:** Instant bill settlement (Electricity, Water, Broadband, Mobile) with payee registry and scheduled automated payments.
 - **Loan & EMI Calculator:** Real-time EMI mathematical engine based on exact amortization formulas ($E = \frac{P \cdot r \cdot (1+r)^n}{(1+r)^n - 1}$) using 16-digit precision `BigDecimal`, coupled with administrative approval and automated disbursement.
 - **Wealth & Investments:** Compound interest simulation engine for Fixed Deposits (FD), Recurring Deposits (RD), and Mutual Funds with premature redemption capabilities.
-- **Modern Angular Frontend:** Standalone component architecture, Angular Signals, reactive forms, functional HTTP Bearer interceptors, and a refined Earth-tone palette (Walnut Brown, Sage Green, and Amber Glow).
+- **Modern Angular Frontend:** Standalone component architecture, Angular Signals, reactive forms, functional HTTP Bearer interceptors, and a signature Earth-tone palette:
+  - **Walnut Brown (`#5A3E2B`):** Primary branding, module navigation bar, headers, and primary actions.
+  - **Sage Green (`#87A96B`):** Account balances, positive credit movements, and verified compliance status.
+  - **Amber Glow (`#D5851F`):** Active navigation indicators, 2FA OTP security alerts, and loan EMI calculations.
 
 ---
 
@@ -25,12 +49,12 @@ A modern, secure, and full-stack enterprise digital core banking platform engine
 
 ```mermaid
 flowchart TD
-    Client["Client (Browser / REST API)"]
-    Controller["Controller Layer (@RestController)\n- AuthController\n- AccountController\n- TransferController\n- TransactionController\n- BillPayController\n- LoanController\n- InvestmentController\n- ComplianceController\n- AdminController"]
+    Client["Client (Browser / Angular SPA)"]
+    Controller["Controller Layer (@RestController)\n- AuthController\n- AccountController\n- TransferController\n- TransactionController\n- BillPayController\n- LoanController\n- InvestmentController\n- ComplianceController\n- HealthController\n- AdminController"]
     Security["Security & Filter Layer\n- JwtAuthenticationFilter\n- SecurityFilterChain (RBAC)\n- BCryptPasswordEncoder"]
     Service["Service Layer (@Service)\n- AuthService\n- AccountService\n- TransferService (@Transactional)\n- TransactionRecordService (REQUIRES_NEW)\n- LoanService & InvestmentService\n- ComplianceService & AuditLogService\n- AdminService"]
     Repo["Repository Layer (@Repository)\n- Spring Data JPA Interfaces"]
-    DB[(MySQL Database\nbankease_db)]
+    DB[(MySQL / In-Memory Database\nbankease_db)]
 
     Client -->|HTTP / JSON| Controller
     Controller --> Security
@@ -42,7 +66,7 @@ flowchart TD
 ### Transactional Atomicity & Attempt Logging
 
 1. **Atomic Transfers:** Balances are transferred within an atomic transaction. A failure during either the debit or credit phase triggers a complete rollback to guarantee system balance invariants.
-2. **Independent Audit Trails:** Transaction attempts (both `SUCCESS` and `FAILED`) are captured using `Propagation.REQUIRES_NEW` via `TransactionRecordService`. Even when transfers are rejected due to insufficient funds or exceeded daily limits, the compliance record is permanently preserved in MySQL.
+2. **Independent Audit Trails:** Transaction attempts (both `SUCCESS` and `FAILED`) are captured using `Propagation.REQUIRES_NEW` via `TransactionRecordService`. Even when transfers are rejected due to insufficient funds or exceeded daily limits, the compliance record is permanently preserved in the database.
 
 ---
 
@@ -52,21 +76,22 @@ flowchart TD
 | :--- | :--- | :--- |
 | **Backend Framework** | Spring Boot 4.1.2 | Spring Web MVC, Spring Data JPA, Spring Security 6, Jakarta Validation |
 | **Language** | Java 25 | Modern LTS features, Records, Pattern Matching, Strict Type Safety |
-| **Database** | MySQL 8+ | InnoDb engine with foreign key constraints, indexing, and ACID compliance |
+| **Database** | MySQL 8+ / H2 | InnoDb engine with foreign key constraints, indexing, and ACID compliance |
 | **Authentication** | JWT (jjwt 0.12.6) | 256-bit HMAC-SHA256 stateless session tokens |
 | **Cryptography** | BCrypt | Salted password hashing via `spring-security-crypto` |
 | **Frontend Framework**| Angular 22 | Standalone Components, Angular Signals, TypeScript, Modern CSS Grid |
-| **Build Tools** | Maven & npm | Maven Wrapper (`./mvnw`) and Angular CLI |
+| **Containerization** | Docker | Multi-stage Dockerfile (Node 24 + Temurin 25 JRE), Docker Compose |
+| **Hosting & CI/CD** | Render & GitHub Actions | Automated build, unit testing, and continuous deployment |
 
 ---
 
-## 🚀 4. Getting Started
+## 🚀 4. Getting Started (Local Development)
 
 ### Prerequisites
 
 1. **Java 25 SDK** installed and configured (`JAVA_HOME`).
-2. **MySQL Server 8+** running on `localhost:3306`.
-3. **Node.js (v20+) & npm** (optional, for standalone frontend development).
+2. **MySQL Server 8+** running on `localhost:3306` (or Docker).
+3. **Node.js (v24+) & npm** (optional, for standalone frontend development).
 
 ### Step 1: Initialize Database
 
@@ -112,7 +137,6 @@ Execute the automated test suite (uses fast in-memory H2 database; does not requ
 ### Step 4: Launch the Application
 
 #### Option A: Run with Maven Wrapper
-Start the backend server using the Maven wrapper:
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
@@ -138,9 +162,6 @@ All responses follow a uniform structure: `{ "success": boolean, "message": stri
 | Category | Method | Endpoint | Access Level | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | **System** | `GET` | `/api/health` | Public | Unauthenticated health check probe for load balancers |
-
-| Category | Method | Endpoint | Access Level | Description |
-| :--- | :--- | :--- | :--- | :--- |
 | **Auth** | `POST` | `/api/auth/register` | Public | Register new user & auto-provision savings account |
 | **Auth** | `POST` | `/api/auth/login` | Public | Authenticate user & issue signed JWT |
 | **Auth** | `GET` | `/api/auth/me` | Authenticated | Retrieve authenticated session details |
