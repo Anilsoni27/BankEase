@@ -3,10 +3,12 @@
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# Stage 1: Build Angular Frontend
+# Stage 1: Build Angular Frontend (Requires Node >= 22.22.3 or >= 24.15.0)
 # ------------------------------------------------------------------------------
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 WORKDIR /app/frontend
+
+ENV NG_CLI_ANALYTICS=false
 
 # Cache npm dependencies
 COPY frontend/package*.json ./
