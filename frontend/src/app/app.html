@@ -421,7 +421,7 @@
 
           <!-- Quick Select from Saved Payees -->
           @if (payees().length > 0) {
-            <div style="margin-bottom: 0.65rem;">
+            <div style="margin-bottom: 1.25rem;">
               <label class="form-label">Select Saved Payee</label>
               <div class="demo-pill-group">
                 @for (p of payees(); track p.id) {
@@ -481,8 +481,8 @@
           </form>
 
           <!-- Add Payee Sub-card -->
-          <div style="margin-top: 0.85rem; border-top: 1px solid #dacdc5; padding-top: 0.75rem;">
-            <div class="card-title" style="font-size:0.95rem; margin-bottom: 0.5rem;">➕ Register New Payee</div>
+          <div style="margin-top: 1.5rem; border-top: 1px solid #e2e8f0; padding-top: 1.25rem;">
+            <div class="card-title" style="font-size:1rem;">➕ Register New Payee</div>
             <form (ngSubmit)="onAddPayee()">
               <div class="form-group">
                 <input type="text" [(ngModel)]="newPayee.payeeName" name="newPayeeName" class="form-control" placeholder="Biller Name (e.g. Jio Fiber)" required>
@@ -552,12 +552,12 @@
             <span>🧮 Interactive EMI Calculator</span>
           </div>
 
-          <div style="background:#FEF7ED; border:1px solid #F5D3A2; border-radius:8px; padding:0.75rem 1rem; margin-bottom:0.85rem; text-align:center;">
-            <div style="font-size:0.75rem; color:#9A5A0C; font-weight:700; text-transform:uppercase;">Estimated Monthly EMI</div>
-            <div style="font-size:1.8rem; font-weight:800; color:#D5851F; letter-spacing:-0.5px; line-height: 1.2; margin: 0.2rem 0;">
+          <div style="background:#FEF7ED; border:1px solid #F5D3A2; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem; text-align:center;">
+            <div style="font-size:0.8rem; color:#9A5A0C; font-weight:700; text-transform:uppercase;">Estimated Monthly EMI</div>
+            <div style="font-size:2.2rem; font-weight:800; color:#D5851F; letter-spacing:-1px;">
               ₹ {{ loanCalculator.emi | number:'1.2-2' }}
             </div>
-            <div style="font-size:0.75rem; color:#9A5A0C; display:flex; justify-content:space-around; margin-top:0.35rem;">
+            <div style="font-size:0.75rem; color:#9A5A0C; display:flex; justify-content:space-around; margin-top:0.5rem;">
               <span>Total Interest: <strong>₹ {{ loanCalculator.totalInterest | number:'1.2-2' }}</strong></span>
               <span>Total Payable: <strong>₹ {{ loanCalculator.totalPay | number:'1.2-2' }}</strong></span>
             </div>
@@ -599,8 +599,8 @@
               style="width:100%;">
           </div>
 
-          <div style="border-top: 1px solid #dacdc5; padding-top:0.75rem; margin-top:0.75rem;">
-            <div class="card-title" style="font-size:0.95rem; margin-bottom: 0.5rem;">📝 Submit Loan Application</div>
+          <div style="border-top: 1px solid #e2e8f0; padding-top:1.25rem; margin-top:1.25rem;">
+            <div class="card-title" style="font-size:1.05rem;">📝 Submit Loan Application</div>
             <form (ngSubmit)="onApplyLoan()">
               <div class="form-group">
                 <label class="form-label">Loan Category</label>
@@ -686,12 +686,12 @@
             <span>📈 Wealth Builder & FD Simulator</span>
           </div>
 
-          <div style="background:#F0F5EC; border:1px solid #C4DAB7; border-radius:8px; padding:0.75rem 1rem; margin-bottom:0.85rem; text-align:center;">
-            <div style="font-size:0.75rem; color:#446330; font-weight:700; text-transform:uppercase;">Estimated Maturity Return</div>
-            <div style="font-size:1.8rem; font-weight:800; color:#446330; letter-spacing:-0.5px; line-height: 1.2; margin: 0.2rem 0;">
+          <div style="background:#F0F5EC; border:1px solid #C4DAB7; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem; text-align:center;">
+            <div style="font-size:0.8rem; color:#446330; font-weight:700; text-transform:uppercase;">Estimated Maturity Return</div>
+            <div style="font-size:2.2rem; font-weight:800; color:#446330; letter-spacing:-1px;">
               ₹ {{ fdCalculator.maturity | number:'1.2-2' }}
             </div>
-            <div style="font-size:0.75rem; color:#446330; margin-top:0.25rem;">
+            <div style="font-size:0.75rem; color:#446330; margin-top:0.35rem;">
               Profit / Interest: <strong>₹ {{ fdCalculator.interest | number:'1.2-2' }}</strong> (Compounded Quarterly)
             </div>
           </div>
@@ -801,26 +801,26 @@
           </div>
 
           <!-- KYC Badge Card -->
-          <div style="background:#F9F6F3; border:1px solid #DACDC5; border-radius:8px; padding:0.75rem 1rem; margin-bottom:0.85rem;">
+          <div style="background:#F9F6F3; border:1px solid #DACDC5; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <div style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:#7A543C;">KYC Verification Status</div>
-                <div style="font-size:1.15rem; font-weight:800; color:#5A3E2B;">
+                <div style="font-size:0.8rem; text-transform:uppercase; font-weight:700; color:#7A543C;">KYC Verification Status</div>
+                <div style="font-size:1.2rem; font-weight:800; color:#5A3E2B;">
                   {{ kycDetails()?.kycStatus || 'VERIFIED' }}
                 </div>
               </div>
               <span class="status-badge success">RBI Compliant</span>
             </div>
-            <p style="font-size:0.78rem; color:#64748b; margin-top:0.35rem; margin-bottom:0.35rem;">
+            <p style="font-size:0.8rem; color:#64748b; margin-top:0.5rem;">
               Your identity is verified. Unlimited transactions are enabled within daily thresholds.
             </p>
-            <button type="button" (click)="onUpdateKyc()" class="btn btn-secondary btn-sm" style="margin-top:0.35rem;">
+            <button type="button" (click)="onUpdateKyc()" class="btn btn-secondary btn-sm" style="margin-top:0.5rem;">
               Re-Verify Documents
             </button>
           </div>
 
           <!-- Daily Limit Management -->
-          <div class="card-title" style="font-size:0.95rem; margin-bottom: 0.5rem;">⚙️ Daily Transfer Limit Control</div>
+          <div class="card-title" style="font-size:1.05rem;">⚙️ Daily Transfer Limit Control</div>
           <form (ngSubmit)="onUpdateDailyLimit()">
             <div class="form-group">
               <label class="form-label">Current Daily Limit (₹)</label>
