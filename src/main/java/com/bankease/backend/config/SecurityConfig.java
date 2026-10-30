@@ -62,6 +62,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // Allow public authentication endpoints
                 .requestMatchers("/api/auth/**").permitAll()
+                // Health check probe for Docker / Kubernetes / Cloud load balancers
+                .requestMatchers("/api/health").permitAll()
                 // Allow error dispatch
                 .requestMatchers("/error").permitAll()
                 // Admin-only management endpoints

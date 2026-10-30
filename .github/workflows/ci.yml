@@ -1,0 +1,55 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    name: Build & Test BankEase Full-Stack
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Build Angular Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Setup Java 25 (Eclipse Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'maven'
+
+      - name: Grant Execute Permission to Maven Wrapper
+        run: chmod +x ./mvnw
+
+      - name: Run Backend Unit & Integration Tests (H2 Database)
+        run: ./mvnw test -B
+
+      - name: Sync Frontend Build to Static Resources
+        run: |
+          mkdir -p src/main/resources/static
+          cp -r frontend/dist/frontend/browser/* src/main/resources/static/
+
+      - name: Package Standalone Production JAR
+        run: ./mvnw clean package -DskipTests -B
+
+      - name: Verify Executable JAR Artifact
+        run: |
+          ls -lh target/*.jar
+

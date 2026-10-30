@@ -1,0 +1,54 @@
+services:
+  # MySQL Database Service
+  db:
+    image: mysql:8.0
+    container_name: bankease-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: bankease_db
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-BankEaseSecurePass2026!}
+    ports:
+      - "${DB_EXTERNAL_PORT:-3306}:3306"
+    volumes:
+      - bankease_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - bankease-network
+
+  # BankEase Full-Stack Core Banking Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bankease-app
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - PORT=8080
+      - DB_URL=jdbc:mysql://db:3306/bankease_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - DB_USERNAME=root
+      - DB_PASSWORD=${DB_PASSWORD:-BankEaseSecurePass2026!}
+      - JWT_SECRET=${JWT_SECRET:-BankEaseProductionSecretKey256BitHmacSha2026!@#$}
+      - SEED_ENABLED=${SEED_ENABLED:-true}
+      - OTP_DEMO_MODE=${OTP_DEMO_MODE:-false}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:4200,http://127.0.0.1:8080}
+    ports:
+      - "${PORT:-8080}:8080"
+    networks:
+      - bankease-network
+
+volumes:
+  bankease_mysql_data:
+    driver: local
+
+networks:
+  bankease-network:
+    driver: bridge
+

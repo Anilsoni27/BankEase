@@ -1,0 +1,36 @@
+# ==============================================================================
+# BankEase Render.com Deployment Blueprint
+# ==============================================================================
+services:
+  - type: web
+    name: bankease-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DB_URL
+        fromDatabase:
+          name: bankease-mysql
+          property: connectionString
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: bankease-mysql
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SEED_ENABLED
+        value: "true"
+      - key: OTP_DEMO_MODE
+        value: "false"
+
+databases:
+  - name: bankease-mysql
+    databaseName: bankease_db
+    user: root
+    plan: starter
+    region: oregon
+

@@ -111,10 +111,15 @@ Execute the automated test suite (uses fast in-memory H2 database; does not requ
 
 ### Step 4: Launch the Application
 
+#### Option A: Run with Maven Wrapper
 Start the backend server using the Maven wrapper:
-
 ```powershell
 .\mvnw.cmd spring-boot:run
+```
+
+#### Option B: Run with Docker Compose (Full-Stack + MySQL)
+```bash
+docker compose up -d --build
 ```
 
 Once started, the complete digital banking interface is served at:
@@ -122,11 +127,17 @@ Once started, the complete digital banking interface is served at:
 
 *(Spring Boot automatically bundles and serves the production-compiled Angular application from `src/main/resources/static/`).*
 
+> 📖 **Production Deployment Guide:** For detailed guides on deploying via Docker, Render, Railway, or Linux VPS with systemd and Nginx, see [**`DEPLOYMENT.md`**](DEPLOYMENT.md).
+
 ---
 
 ## 📡 5. REST API Endpoints Summary
 
 All responses follow a uniform structure: `{ "success": boolean, "message": string, "data": T, "timestamp": string }`.
+
+| Category | Method | Endpoint | Access Level | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **System** | `GET` | `/api/health` | Public | Unauthenticated health check probe for load balancers |
 
 | Category | Method | Endpoint | Access Level | Description |
 | :--- | :--- | :--- | :--- | :--- |
@@ -173,7 +184,7 @@ All responses follow a uniform structure: `{ "success": boolean, "message": stri
 5. **High-Precision Financial Math:**
    - All monetary amounts, interest calculations, and EMI engines utilize `BigDecimal` with explicit scale and rounding mode (`RoundingMode.HALF_EVEN`), preventing IEEE 754 floating-point inaccuracies.
 6. **Automated Test Coverage:**
-   - Comprehensive suite of 40 unit and integration tests covering security authorization, transfer transactional atomicity, EMI mathematical formulas, and legacy compliance data repairs.
+   - Comprehensive suite of 41 unit and integration tests covering security authorization, transfer transactional atomicity, EMI mathematical formulas, and legacy compliance data repairs.
 
 ---
 

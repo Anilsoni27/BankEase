@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDEs & System Files
+.idea
+.vscode
+.settings
+.classpath
+.project
+*.iml
+.DS_Store
+Thumbs.db
+
+# Build Artifacts
+target/
+build/
+*.jar
+*.war
+
+# Node & Angular
+frontend/node_modules/
+frontend/.angular/
+frontend/dist/
+
+# Test & Logs
+*.log
+.system_generated
+
