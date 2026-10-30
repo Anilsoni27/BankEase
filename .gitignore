@@ -36,3 +36,9 @@ build/
 **/node_modules/
 **/dist/
 .angular/
+
+### Presentation & Local Slides ###
+*.pptx
+BankEase_Presentation.pptx
+PRESENTATION.md
+
